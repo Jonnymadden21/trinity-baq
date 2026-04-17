@@ -56,7 +56,7 @@ export default function Configurator() {
   const [roi, setRoi] = useState({
     shopRate: 125, hrsPerShift: 8, operatorWage: 30, workingDays: 250,
     mannedShifts: 1, unmannedShifts: 1,
-    mannedUtilBefore: 60, mannedUtilAfter: 85,
+    mannedUtilBefore: 30, mannedUtilAfter: 85,
     unmannedUtilBefore: 0, unmannedUtilAfter: 70,
   });
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});

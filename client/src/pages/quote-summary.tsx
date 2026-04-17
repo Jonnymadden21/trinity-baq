@@ -285,44 +285,56 @@ export default function QuoteSummary() {
                 </div>
               </Card>
 
-              {rp && (
-                <Card className="p-5">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    Return on Investment
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Payback</p>
-                      <p className="text-xl font-bold text-emerald-500">{rp.paybackMonths > 0 ? rp.paybackMonths.toFixed(1) : "—"}</p>
-                      <p className="text-[10px] text-muted-foreground">months</p>
+              {rp && (() => {
+                const fiveYearNet = rp.netBenefit * 5 - quote.totalPrice;
+                return (
+                  <Card className="p-5">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Return on Investment
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Payback</p>
+                        <p className="text-xl font-bold text-emerald-500">{rp.paybackMonths > 0 && rp.paybackMonths < 999 ? rp.paybackMonths.toFixed(1) : "—"}</p>
+                        <p className="text-[10px] text-muted-foreground">months</p>
+                      </div>
+                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">5-Year Net</p>
+                        <p className="text-xl font-bold text-emerald-500">${fiveYearNet > 0 ? Math.round(fiveYearNet).toLocaleString() : "—"}</p>
+                        <p className="text-[10px] text-muted-foreground">profit</p>
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">5-Year Net</p>
-                      <p className="text-xl font-bold text-emerald-500">${rp.fiveYearNet > 0 ? Math.round(rp.fiveYearNet).toLocaleString() : "—"}</p>
-                      <p className="text-[10px] text-muted-foreground">profit</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">New Revenue (Utilization Gains)</span>
+                        <span className="font-medium text-emerald-500">${Math.round(rp.totalGainRev).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Labor Reallocation Value</span>
+                        <span className="font-medium text-emerald-500">${Math.round(rp.laborSaving).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Operating Costs</span>
+                        <span className="font-medium text-red-400">-${Math.round(rp.opCost).toLocaleString()}</span>
+                      </div>
+                      <Separator className="my-1" />
+                      <div className="flex justify-between font-semibold">
+                        <span className="text-foreground">Net Annual Benefit</span>
+                        <span className="text-emerald-500">${Math.round(rp.netBenefit).toLocaleString()}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Annual Labor Savings</span>
-                      <span className="font-medium text-emerald-500">${rp.annualLaborSavings.toLocaleString()}</span>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                      <div><p className="text-muted-foreground">Year 1</p><p className="font-bold text-emerald-500">{Math.round(rp.year1ROI)}%</p></div>
+                      <div><p className="text-muted-foreground">Year 3</p><p className="font-bold text-emerald-500">{Math.round(rp.year3ROI)}%</p></div>
+                      <div><p className="text-muted-foreground">Year 5</p><p className="font-bold text-emerald-500">{Math.round(rp.year5ROI)}%</p></div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Annual Revenue Increase</span>
-                      <span className="font-medium text-emerald-500">${rp.annualRevenueIncrease.toLocaleString()}</span>
+                    <div className="mt-3 text-[10px] text-muted-foreground">
+                      {rp.mannedShifts} manned + {rp.unmannedShifts} unmanned shifts · ${rp.shopRate}/hr shop rate · {rp.capacityMult.toFixed(1)}x capacity · Sec. 179: ${Math.round(rp.taxSavings).toLocaleString()} savings
                     </div>
-                    <Separator className="my-1" />
-                    <div className="flex justify-between font-semibold">
-                      <span className="text-foreground">Total Annual Benefit</span>
-                      <span className="text-emerald-500">${rp.totalAnnualBenefit.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-[10px] text-muted-foreground">
-                    Based on {rp.laborHoursPerWeek} hrs/wk saved @ ${rp.hourlyLaborCost}/hr + {rp.additionalPartsPerDay} parts/day @ ${rp.revenuePerPart}/part
-                  </div>
-                </Card>
-              )}
+                  </Card>
+                );
+              })()}
             </div>
           );
         })()}
