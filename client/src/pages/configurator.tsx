@@ -618,51 +618,314 @@ export default function Configurator() {
             </TabsList>
 
             <TabsContent value="roi" className="space-y-5 mt-4">
-              <RoiInputs roi={roi} setRoi={setRoi} />
+              {/* === SHOP DETAILS === */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border/50 p-4">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Shop Details</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Shop Rate ($/hr)</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">$</span>
+                        <Input type="number" value={roi.shopRate} onChange={(e) => setRoi((p) => ({ ...p, shopRate: Number(e.target.value) || 0 }))} min={25} max={300} step={5} className="h-9" />
+                        <span className="text-xs text-muted-foreground">/hr</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Hours per Shift</Label>
+                      <Input type="number" value={roi.hrsPerShift} onChange={(e) => setRoi((p) => ({ ...p, hrsPerShift: Number(e.target.value) || 8 }))} min={4} max={12} step={1} className="h-9 mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Operator Wage ($/hr)</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">$</span>
+                        <Input type="number" value={roi.operatorWage} onChange={(e) => setRoi((p) => ({ ...p, operatorWage: Number(e.target.value) || 0 }))} min={15} max={80} step={1} className="h-9" />
+                        <span className="text-xs text-muted-foreground">/hr</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Working Days / Year</Label>
+                      <Input type="number" value={roi.workingDays} onChange={(e) => setRoi((p) => ({ ...p, workingDays: Number(e.target.value) || 250 }))} min={200} max={365} step={5} className="h-9 mt-1" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* === SHIFT CONFIGURATION === */}
+                <div className="rounded-lg border border-border/50 p-4">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Shift Configuration</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Label className="text-xs">Manned Shifts</Label>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-blue-400/50 text-blue-400">OPERATOR PRESENT</Badge>
+                      </div>
+                      <div className="flex gap-1.5">
+                        {[0, 1, 2, 3].map((s) => (
+                          <button key={s} onClick={() => setRoi((p) => ({ ...p, mannedShifts: s }))}
+                            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${roi.mannedShifts === s ? "bg-blue-500 text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}>{s}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Label className="text-xs">Unmanned Shifts</Label>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-400/50 text-amber-400">LIGHTS-OUT</Badge>
+                      </div>
+                      <div className="flex gap-1.5">
+                        {[0, 1, 2, 3].map((s) => (
+                          <button key={s} onClick={() => setRoi((p) => ({ ...p, unmannedShifts: s }))}
+                            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${roi.unmannedShifts === s ? "bg-amber-500 text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}>{s}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground">
+                      During manned shifts, automation boosts utilization. But unmanned shifts go from 0% to 80% — that's <strong className="text-foreground">entirely new revenue</strong>.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* === UTILIZATION SLIDERS === */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-blue-400/20 bg-blue-500/5 p-4">
+                  <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-400" /> Manned Shift Utilization
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground mb-3">Preset utilization sourced by MachineMetrics.com</p>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1"><span className="text-muted-foreground">Before Automation</span><span className="font-mono font-semibold">{roi.mannedUtilBefore}%</span></div>
+                      <Slider value={[roi.mannedUtilBefore]} onValueChange={([v]) => setRoi((p) => ({ ...p, mannedUtilBefore: v }))} min={10} max={80} step={1} />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1"><span className="text-muted-foreground">After Automation</span><span className="font-mono font-semibold text-blue-400">{roi.mannedUtilAfter}%</span></div>
+                      <Slider value={[roi.mannedUtilAfter]} onValueChange={([v]) => setRoi((p) => ({ ...p, mannedUtilAfter: v }))} min={50} max={95} step={1} />
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-amber-400/20 bg-amber-500/5 p-4">
+                  <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber-400" /> Unmanned Shift Utilization
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground mb-3">&nbsp;</p>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1"><span className="text-muted-foreground">Before Automation</span><span className="font-mono font-semibold">{roi.unmannedUtilBefore}%</span></div>
+                      <Slider value={[roi.unmannedUtilBefore]} onValueChange={([v]) => setRoi((p) => ({ ...p, unmannedUtilBefore: v }))} min={0} max={30} step={1} />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1"><span className="text-muted-foreground">After Automation</span><span className="font-mono font-semibold text-amber-400">{roi.unmannedUtilAfter}%</span></div>
+                      <Slider value={[roi.unmannedUtilAfter]} onValueChange={([v]) => setRoi((p) => ({ ...p, unmannedUtilAfter: v }))} min={40} max={95} step={1} />
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <Separator />
 
-              {/* Results — matching Trinity ROI format */}
-              <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  <KpiSmall label="Net Annual" value={USD(Math.round(roiCalc.netBenefit))} />
-                  <KpiSmall
-                    label="Payback"
-                    value={roiCalc.paybackMonths > 0 && roiCalc.paybackMonths < 999
-                      ? `${roiCalc.paybackMonths.toFixed(1)} mo` : "—"}
-                  />
-                  <KpiSmall label="Capacity" value={`${roiCalc.capacityMult.toFixed(1)}x`} />
-                  <KpiSmall label="Year 5 ROI" value={`${Math.round(roiCalc.year5ROI)}%`} />
+              {/* === HERO STATS === */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Net Annual Benefit</p>
+                  <p className="text-xl font-bold text-emerald-500">{USD(Math.round(roiCalc.netBenefit))}</p>
+                  <p className="text-[10px] text-muted-foreground">per year</p>
                 </div>
-                <p className="text-center text-[10px] text-muted-foreground mt-2">
-                  Sec. 179 Tax Savings: {USD(Math.round(roiCalc.taxSavings))} · Effective Cost:{" "}
-                  {USD(Math.round(roiCalc.effectiveCost))}
-                </p>
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Payback Period</p>
+                  <p className="text-xl font-bold text-emerald-500">{roiCalc.paybackMonths > 0 && roiCalc.paybackMonths < 120 ? roiCalc.paybackMonths.toFixed(1) : "120+"}</p>
+                  <p className="text-[10px] text-muted-foreground">months</p>
+                </div>
+                <div className="rounded-lg bg-primary/5 border border-primary/10 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Additional Revenue</p>
+                  <p className="text-xl font-bold text-foreground">{USD(Math.round(roiCalc.totalGainRev))}</p>
+                  <p className="text-[10px] text-muted-foreground">per year</p>
+                </div>
+                <div className="rounded-lg bg-primary/5 border border-primary/10 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Investment</p>
+                  <p className="text-xl font-bold text-foreground">{USD(Math.round(totalPrice))}</p>
+                  <p className="text-[10px] text-muted-foreground">{machine.name}</p>
+                </div>
+              </div>
+
+              {/* === ROI TIMELINE === */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-[10px] uppercase text-muted-foreground">Year 1 ROI</p>
+                  <p className="text-2xl font-bold text-emerald-500">{Math.round(roiCalc.year1ROI)}%</p>
+                </div>
+                <div className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-[10px] uppercase text-muted-foreground">Year 3 ROI</p>
+                  <p className="text-2xl font-bold text-emerald-500">{Math.round(roiCalc.year3ROI)}%</p>
+                </div>
+                <div className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-[10px] uppercase text-muted-foreground">Year 5 ROI</p>
+                  <p className="text-2xl font-bold text-emerald-500">{Math.round(roiCalc.year5ROI)}%</p>
+                </div>
+              </div>
+
+              {/* === SHIFT-BY-SHIFT IMPACT === */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                {roi.mannedShifts > 0 && (
+                  <div className="rounded-lg border border-blue-400/20 bg-blue-500/5 p-4">
+                    <h4 className="text-xs font-semibold text-foreground mb-3">Manned Shifts ({roi.mannedShifts}x {roi.hrsPerShift}hr)</h4>
+                    <div className="space-y-2 mb-3">
+                      <div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>Before</span><span>{roi.mannedUtilBefore}%</span></div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-blue-400 transition-all" style={{ width: `${roi.mannedUtilBefore}%` }} /></div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>After</span><span>{roi.mannedUtilAfter}%</span></div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-blue-400 transition-all" style={{ width: `${roi.mannedUtilAfter}%` }} /></div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                      <div><p className="text-muted-foreground">Gained hrs/day</p><p className="text-sm font-bold text-foreground">{roiCalc.mannedGainHrs.toFixed(1)}</p></div>
+                      <div><p className="text-muted-foreground">Annual Revenue</p><p className="text-sm font-bold text-emerald-500">{USD(Math.round(roiCalc.mannedGainRev))}</p></div>
+                    </div>
+                  </div>
+                )}
+                {roi.unmannedShifts > 0 && (
+                  <div className="rounded-lg border border-amber-400/20 bg-amber-500/5 p-4">
+                    <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
+                      Unmanned Shifts ({roi.unmannedShifts}x {roi.hrsPerShift}hr)
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-400/50 text-amber-400">NEW REVENUE</Badge>
+                    </h4>
+                    <div className="space-y-2 mb-3">
+                      <div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>Before</span><span>{roi.unmannedUtilBefore}%</span></div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-amber-400 transition-all" style={{ width: `${roi.unmannedUtilBefore}%` }} /></div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>After</span><span>{roi.unmannedUtilAfter}%</span></div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-amber-400 transition-all" style={{ width: `${roi.unmannedUtilAfter}%` }} /></div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                      <div><p className="text-muted-foreground">NEW hrs/day</p><p className="text-sm font-bold text-foreground">{roiCalc.unmannedGainHrs.toFixed(1)}</p></div>
+                      <div><p className="text-muted-foreground">NEW Annual Revenue</p><p className="text-sm font-bold text-emerald-500">{USD(Math.round(roiCalc.unmannedGainRev))}</p></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* === SHIFT SUMMARY === */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground">Productive hrs/day</p>
+                  <p className="text-sm font-bold">{roiCalc.totalHrsBefore > 0.01 ? roiCalc.totalHrsBefore.toFixed(1) : "0"} → {roiCalc.totalHrsAfter.toFixed(1)}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground">Hours gained/day</p>
+                  <p className="text-sm font-bold text-emerald-500">+{roiCalc.totalGainHrs.toFixed(1)}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground">Capacity multiplier</p>
+                  <p className="text-sm font-bold">{roiCalc.capacityMult.toFixed(1)}x</p>
+                </div>
+              </div>
+
+              {/* === ANNUAL BENEFIT BREAKDOWN === */}
+              <div className="rounded-lg border border-border/50 p-4 space-y-3 text-sm">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Annual Benefit Breakdown</h4>
+                <div className="flex justify-between">
+                  <div>
+                    <span className="text-foreground">Manned Shift Improvement</span>
+                    <p className="text-[10px] text-muted-foreground">{roiCalc.mannedGainHrs.toFixed(1)} hrs/day × ${roi.shopRate} × {roi.workingDays} days</p>
+                  </div>
+                  <span className="font-semibold text-emerald-500">{USD(Math.round(roiCalc.mannedGainRev))}</span>
+                </div>
+                {roi.unmannedShifts > 0 && (
+                  <div className="flex justify-between">
+                    <div>
+                      <span className="text-foreground">Unmanned Shift NEW Revenue</span>
+                      <p className="text-[10px] text-muted-foreground">{roiCalc.unmannedGainHrs.toFixed(1)} hrs/day × ${roi.shopRate} × {roi.workingDays} days</p>
+                    </div>
+                    <span className="font-semibold text-emerald-500">{USD(Math.round(roiCalc.unmannedGainRev))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <div>
+                    <span className="text-foreground">Labor Reallocation Value</span>
+                    <p className="text-[10px] text-muted-foreground">{roiCalc.mannedGainHrs.toFixed(1)} hrs × ${roi.operatorWage} × {roi.workingDays} days × 50%</p>
+                  </div>
+                  <span className="font-semibold text-emerald-500">{USD(Math.round(roiCalc.laborSaving))}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span className="text-foreground">Gross Benefit</span>
+                  <span className="text-emerald-500">{USD(Math.round(roiCalc.grossBenefit))}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-red-400">
+                  <div>
+                    <span>Less: Operating Costs (~$5/hr)</span>
+                    <p className="text-[10px] text-muted-foreground/70">{roiCalc.totalAutoHrs.toFixed(1)} hrs/day × $5 × {roi.workingDays} days</p>
+                  </div>
+                  <span className="font-semibold">-{USD(Math.round(roiCalc.opCost))}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-base font-bold">
+                  <span className="text-foreground">Net Annual Benefit</span>
+                  <span className="text-emerald-500">{USD(Math.round(roiCalc.netBenefit))}</span>
+                </div>
+              </div>
+
+              {/* === SECTION 179 === */}
+              <div className="rounded-lg bg-primary/5 border border-primary/10 p-4 text-center">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Section 179 Tax Benefit</h4>
+                <p className="text-sm text-muted-foreground">Federal tax deduction (21% rate) on equipment purchase</p>
+                <div className="grid grid-cols-3 gap-3 mt-3">
+                  <div><p className="text-[10px] text-muted-foreground">Tax Savings</p><p className="text-lg font-bold text-primary">{USD(Math.round(roiCalc.taxSavings))}</p></div>
+                  <div><p className="text-[10px] text-muted-foreground">Effective Cost</p><p className="text-lg font-bold text-foreground">{USD(Math.round(roiCalc.effectiveCost))}</p></div>
+                  <div><p className="text-[10px] text-muted-foreground">Adj. Payback</p><p className="text-lg font-bold text-emerald-500">{roiCalc.paybackMonths > 0 && roiCalc.paybackMonths < 120 ? (roiCalc.paybackMonths * 0.79).toFixed(1) : "—"} mo</p></div>
+                </div>
               </div>
             </TabsContent>
 
             <TabsContent value="financing" className="space-y-5 mt-4">
-              <FinancingInputs
-                financing={financing} setFinancing={setFinancing}
-                calc={financingCalc}
-              />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold">Down Payment ({financing.downPaymentPct}%)</Label>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <Slider value={[financing.downPaymentPct]} onValueChange={([v]) => setFinancing((p) => ({ ...p, downPaymentPct: v }))} min={0} max={50} step={5} className="flex-1" />
+                    <span className="text-sm font-bold w-20 text-right">{USD(Math.round(financingCalc.downPayment))}</span>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">Interest Rate (APR)</Label>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <Slider value={[financing.interestRate]} onValueChange={([v]) => setFinancing((p) => ({ ...p, interestRate: v }))} min={0} max={15} step={0.25} className="flex-1" />
+                    <span className="text-sm font-bold w-14 text-right">{financing.interestRate}%</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Term (months)</Label>
+                <div className="grid grid-cols-6 gap-2 mt-1.5">
+                  {[24, 36, 48, 60, 72, 84].map((m) => (
+                    <button key={m} onClick={() => setFinancing((p) => ({ ...p, termMonths: m }))}
+                      className={`py-2.5 rounded-md text-sm font-medium transition-colors ${financing.termMonths === m ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}>{m}</button>
+                  ))}
+                </div>
+              </div>
+              <Separator />
+              <div className="rounded-lg bg-primary/5 border border-primary/10 p-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                  <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Monthly</p><p className="text-2xl font-bold text-primary">{USD(Math.round(financingCalc.monthlyPayment))}</p></div>
+                  <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Daily</p><p className="text-lg font-bold text-foreground">{USD(Math.round(financingCalc.monthlyPayment / 30))}</p></div>
+                  <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Financed</p><p className="text-lg font-bold text-foreground">{USD(Math.round(financingCalc.principal))}</p></div>
+                  <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Cost</p><p className="text-lg font-bold text-foreground">{USD(Math.round(financingCalc.totalCost))}</p></div>
+                </div>
+              </div>
               {roiCalc.netBenefit > 0 && (
                 <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Monthly payment vs. monthly benefit
-                  </p>
+                  <p className="text-xs text-muted-foreground mb-1">Monthly payment vs. monthly benefit</p>
                   <p className="text-sm font-semibold">
-                    <span className="text-foreground">
-                      {USD(Math.round(financingCalc.monthlyPayment))}/mo cost
-                    </span>{" vs. "}
-                    <span className="text-emerald-500">
-                      {USD(Math.round(roiCalc.netBenefit / 12))}/mo benefit
-                    </span>
+                    <span className="text-foreground">{USD(Math.round(financingCalc.monthlyPayment))}/mo cost</span>
+                    {" vs. "}
+                    <span className="text-emerald-500">{USD(Math.round(roiCalc.netBenefit / 12))}/mo benefit</span>
                   </p>
                   {roiCalc.netBenefit / 12 > financingCalc.monthlyPayment && (
-                    <p className="text-xs text-emerald-500 font-semibold mt-1">
-                      This system pays for itself from day one.
-                    </p>
+                    <p className="text-xs text-emerald-500 font-semibold mt-1">This system pays for itself from day one.</p>
                   )}
                 </div>
               )}
@@ -894,13 +1157,3 @@ function FormField({
 //     from the original file into these). This keeps the main component
 //     tree short and focused. ---
 
-function RoiInputs(_: { roi: any; setRoi: any }) {
-  // Paste the original <TabsContent value="roi"> slider markup here,
-  // using the props rather than closure values.
-  return null;
-}
-
-function FinancingInputs(_: { financing: any; setFinancing: any; calc: any }) {
-  // Paste the original financing slider block here.
-  return null;
-}
