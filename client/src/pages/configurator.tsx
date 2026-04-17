@@ -84,12 +84,8 @@ export default function Configurator() {
   const [roi, setRoi] = useState({
     shopRate: 125, hrsPerShift: 8, operatorWage: 30, workingDays: 250,
     mannedShifts: 1, unmannedShifts: 1,
-    mannedUtilBefore: 30, mannedUtilAfter: 85,
+    mannedUtilBefore: 26, mannedUtilAfter: 80,
     unmannedUtilBefore: 0, unmannedUtilAfter: 70,
-    // New: user-editable hourly cost inputs
-    powerCostPerHr: 1.8,
-    maintenanceCostPerHr: 1.2,
-    consumablesCostPerHr: 2.0,
   });
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const defaultsAppliedRef = useRef(false);
@@ -181,51 +177,58 @@ export default function Configurator() {
       mannedShifts, unmannedShifts, hrsPerShift, shopRate, workingDays,
       operatorWage, mannedUtilBefore, mannedUtilAfter,
       unmannedUtilBefore, unmannedUtilAfter,
-      powerCostPerHr, maintenanceCostPerHr, consumablesCostPerHr,
     } = roi;
 
+    // Manned
     const mannedHrs = mannedShifts * hrsPerShift;
     const mannedBefore = mannedHrs * (mannedUtilBefore / 100);
     const mannedAfter = mannedHrs * (mannedUtilAfter / 100);
     const mannedGainHrs = mannedAfter - mannedBefore;
+    const mannedGainRev = mannedGainHrs * shopRate * workingDays;
 
+    // Unmanned
     const unmannedHrs = unmannedShifts * hrsPerShift;
     const unmannedBefore = unmannedHrs * (unmannedUtilBefore / 100);
     const unmannedAfter = unmannedHrs * (unmannedUtilAfter / 100);
     const unmannedGainHrs = unmannedAfter - unmannedBefore;
+    const unmannedGainRev = unmannedGainHrs * shopRate * workingDays;
 
-    const totalGainRev = (mannedGainHrs + unmannedGainHrs) * shopRate * workingDays;
+    // Combined
+    const totalGainHrs = mannedGainHrs + unmannedGainHrs;
+    const totalGainRev = mannedGainRev + unmannedGainRev;
+
+    // Operating costs ($5/hr flat)
     const totalAutoHrs = mannedAfter + unmannedAfter;
-    const totalScheduledHrs = totalAutoHrs * workingDays;
+    const opCost = totalAutoHrs * 5 * workingDays;
 
-    // --- Hourly operating cost (now data-driven) ---
-    const amortizedCostPerHr =
-      totalScheduledHrs > 0 ? totalPrice / (totalScheduledHrs * 5) : 0;
-    const hourlyOperatingCost =
-      powerCostPerHr + maintenanceCostPerHr + consumablesCostPerHr + amortizedCostPerHr;
-
-    const opCost = totalScheduledHrs * hourlyOperatingCost;
-
+    // Labor reallocation (50% of wage saved)
     const laborSaving = operatorWage * mannedGainHrs * workingDays * 0.5;
-    const netBenefit = totalGainRev + laborSaving - opCost;
 
-    const paybackMonths = netBenefit > 0 ? (totalPrice / netBenefit) * 12 : 0;
-    const roiPct = (years: number) =>
-      totalPrice > 0 ? ((netBenefit * years - totalPrice) / totalPrice) * 100 : 0;
+    // Net
+    const grossBenefit = totalGainRev + laborSaving;
+    const netBenefit = grossBenefit - opCost;
+    const investment = totalPrice;
+    const paybackMonths = netBenefit > 0 ? (investment / netBenefit) * 12 : 0;
+    const year1ROI = investment > 0 ? ((netBenefit - investment) / investment) * 100 : 0;
+    const year3ROI = investment > 0 ? ((netBenefit * 3 - investment) / investment) * 100 : 0;
+    const year5ROI = investment > 0 ? ((netBenefit * 5 - investment) / investment) * 100 : 0;
 
-    const capacityMult = mannedBefore > 0
-      ? (mannedAfter + unmannedAfter) / mannedBefore
-      : mannedAfter + unmannedAfter > 0 ? 999 : 0;
+    // Capacity
+    const totalHrsBefore = mannedBefore > 0 ? mannedBefore : 0.01;
+    const totalHrsAfter = mannedAfter + unmannedAfter;
+    const capacityMult = totalHrsAfter / totalHrsBefore;
 
-    const taxSavings = totalPrice * 0.21;
-    const effectiveCost = totalPrice - taxSavings;
+    // Section 179
+    const taxSavings = investment * 0.21;
+    const effectiveCost = investment - taxSavings;
 
     return {
-      mannedGainHrs, unmannedGainHrs, totalGainRev, laborSaving,
-      opCost, netBenefit, paybackMonths,
-      year1ROI: roiPct(1), year3ROI: roiPct(3), year5ROI: roiPct(5),
-      capacityMult, taxSavings, effectiveCost,
-      hourlyOperatingCost, amortizedCostPerHr, totalScheduledHrs,
+      mannedGainHrs, unmannedGainHrs, mannedGainRev, unmannedGainRev,
+      totalGainHrs, totalGainRev, totalAutoHrs, opCost, laborSaving,
+      grossBenefit, netBenefit, investment, paybackMonths,
+      year1ROI, year3ROI, year5ROI,
+      totalHrsBefore, totalHrsAfter, capacityMult,
+      taxSavings, effectiveCost,
     };
   }, [totalPrice, roi]);
 
@@ -271,21 +274,12 @@ export default function Configurator() {
           monthlyPayment: financingCalc.monthlyPayment,
           totalCost: financingCalc.totalCost,
         }),
-        roiParams: JSON.stringify({
-          ...roi,
-          ...roiCalc,
-          // persist hourly costs on the quote for the PDF
-          powerCostPerHr: roi.powerCostPerHr,
-          maintenanceCostPerHr: roi.maintenanceCostPerHr,
-          consumablesCostPerHr: roi.consumablesCostPerHr,
-          amortizedCostPerHr: roiCalc.amortizedCostPerHr,
-          hourlyOperatingCost: roiCalc.hourlyOperatingCost,
-        }),
+        roiParams: JSON.stringify({ ...roi, ...roiCalc }),
         createdAt: new Date().toISOString(),
       });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({ title: "Quote Generated", description: `Quote #${data.quoteNumber}` });
       navigate(`/quote/${data.quoteNumber}`);
     },
@@ -553,20 +547,26 @@ export default function Configurator() {
               Calculate ROI
             </Button>
 
-            {/* ROI snapshot — now includes hourly op cost */}
-            <div className="mt-4 rounded-lg border border-border/50 p-4 space-y-3">
+            {/* ROI snapshot */}
+            <div className="mt-4 rounded-lg border border-border/50 p-4 space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                Hourly Operating
+                <TrendingUp className="h-3.5 w-3.5" />
+                ROI Snapshot
               </h4>
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs text-muted-foreground">Cost to run</span>
-                <span className="text-lg font-bold text-foreground">
-                  {USD(roiCalc.hourlyOperatingCost, 2)}/hr
-                </span>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Net Annual Benefit</span>
+                <span className="font-semibold text-emerald-500">{USD(Math.round(roiCalc.netBenefit))}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Power + maintenance + consumables + amortized capital.
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Payback</span>
+                <span className="font-semibold text-emerald-500">{roiCalc.paybackMonths > 0 && roiCalc.paybackMonths < 999 ? `${roiCalc.paybackMonths.toFixed(1)} mo` : "—"}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Capacity</span>
+                <span className="font-semibold text-foreground">{roiCalc.capacityMult.toFixed(1)}x</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                Customize in the ROI calculator →
               </p>
             </div>
           </div>
@@ -620,49 +620,9 @@ export default function Configurator() {
             <TabsContent value="roi" className="space-y-5 mt-4">
               <RoiInputs roi={roi} setRoi={setRoi} />
 
-              {/* Hourly operating cost inputs — NEW */}
               <Separator />
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  Hourly Operating Cost Inputs
-                </h4>
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <NumberInput
-                    label="Power & Utilities ($/hr)"
-                    value={roi.powerCostPerHr}
-                    onChange={(v) => setRoi((p) => ({ ...p, powerCostPerHr: v }))}
-                    step={0.1} min={0} max={20}
-                  />
-                  <NumberInput
-                    label="Maintenance ($/hr)"
-                    value={roi.maintenanceCostPerHr}
-                    onChange={(v) => setRoi((p) => ({ ...p, maintenanceCostPerHr: v }))}
-                    step={0.1} min={0} max={20}
-                  />
-                  <NumberInput
-                    label="Consumables ($/hr)"
-                    value={roi.consumablesCostPerHr}
-                    onChange={(v) => setRoi((p) => ({ ...p, consumablesCostPerHr: v }))}
-                    step={0.1} min={0} max={20}
-                  />
-                </div>
-                <div className="mt-3 rounded-lg bg-primary/5 border border-primary/10 p-3 flex items-baseline justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Total hourly cost to operate
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      Includes {USD(roiCalc.amortizedCostPerHr, 2)}/hr amortized capital
-                    </p>
-                  </div>
-                  <p className="text-2xl font-bold text-primary">
-                    {USD(roiCalc.hourlyOperatingCost, 2)}
-                    <span className="text-sm font-normal text-muted-foreground">/hr</span>
-                  </p>
-                </div>
-              </div>
 
+              {/* Results — matching Trinity ROI format */}
               <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <KpiSmall label="Net Annual" value={USD(Math.round(roiCalc.netBenefit))} />
@@ -743,9 +703,7 @@ export default function Configurator() {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Operating cost</span>
-                    <span className="font-semibold text-foreground">
-                      {USD(roiCalc.hourlyOperatingCost, 2)}/hr
-                    </span>
+                    <span className="font-semibold text-foreground">$5.00/hr</span>
                   </div>
                   {roiCalc.paybackMonths > 0 && roiCalc.paybackMonths < 999 && (
                     <div className="flex justify-between text-xs">

@@ -50,12 +50,17 @@ type RoiParams = {
   year3ROI: number;
   year5ROI: number;
   taxSavings: number;
-  // New fields — see configurator.tsx
-  hourlyOperatingCost?: number;
-  powerCostPerHr?: number;
-  maintenanceCostPerHr?: number;
-  consumablesCostPerHr?: number;
-  amortizedCostPerHr?: number;
+  effectiveCost: number;
+  mannedGainHrs: number;
+  unmannedGainHrs: number;
+  mannedGainRev: number;
+  unmannedGainRev: number;
+  grossBenefit: number;
+  totalGainHrs: number;
+  totalAutoHrs: number;
+  totalHrsBefore: number;
+  totalHrsAfter: number;
+  investment: number;
 };
 
 // ---------- helpers ----------
@@ -412,14 +417,72 @@ export default function QuoteSummary() {
           </div>
         )}
 
-        {/* NEW: Hourly Operating Cost Card — requested */}
+        {/* Annual Benefit Breakdown — matches Trinity ROI calculator */}
         {rp && (
           <Card className="p-5 mb-6">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              Hourly Operating Cost
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />
+              Annual Benefit Breakdown
             </h3>
-            <HourlyOperatingCost rp={rp} totalPrice={quote.totalPrice} />
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <div>
+                  <span className="text-foreground">Manned Shift Improvement</span>
+                  <p className="text-[10px] text-muted-foreground">{rp.mannedGainHrs?.toFixed(1) ?? "—"} hrs/day × ${rp.shopRate} × {rp.workingDays} days</p>
+                </div>
+                <span className="font-semibold text-emerald-500">{USD(Math.round(rp.mannedGainRev ?? 0))}</span>
+              </div>
+              {rp.unmannedShifts > 0 && (
+                <div className="flex justify-between">
+                  <div>
+                    <span className="text-foreground">Unmanned Shift <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 border-primary/30 text-primary">NEW REVENUE</Badge></span>
+                    <p className="text-[10px] text-muted-foreground">{rp.unmannedGainHrs?.toFixed(1) ?? "—"} hrs/day × ${rp.shopRate} × {rp.workingDays} days</p>
+                  </div>
+                  <span className="font-semibold text-emerald-500">{USD(Math.round(rp.unmannedGainRev ?? 0))}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <div>
+                  <span className="text-foreground">Labor Reallocation Value</span>
+                  <p className="text-[10px] text-muted-foreground">{rp.mannedGainHrs?.toFixed(1) ?? "—"} hrs × ${rp.operatorWage} × {rp.workingDays} days × 50%</p>
+                </div>
+                <span className="font-semibold text-emerald-500">{USD(Math.round(rp.laborSaving))}</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span className="text-foreground">Gross Benefit</span>
+                <span className="text-emerald-500">{USD(Math.round(rp.grossBenefit ?? (rp.totalGainRev + rp.laborSaving)))}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-red-400">
+                <div>
+                  <span>Less: Operating Costs (~$5/hr)</span>
+                  <p className="text-[10px] text-muted-foreground/70">{rp.totalAutoHrs?.toFixed(1) ?? "—"} hrs/day × $5 × {rp.workingDays} days</p>
+                </div>
+                <span className="font-semibold">-{USD(Math.round(rp.opCost))}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-base font-bold">
+                <span className="text-foreground">Net Annual Benefit</span>
+                <span className="text-emerald-500">{USD(Math.round(rp.netBenefit))}</span>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2">
+                <p className="text-muted-foreground">Year 1 ROI</p>
+                <p className="text-lg font-bold text-emerald-500">{Math.round(rp.year1ROI)}%</p>
+              </div>
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2">
+                <p className="text-muted-foreground">Year 3 ROI</p>
+                <p className="text-lg font-bold text-emerald-500">{Math.round(rp.year3ROI)}%</p>
+              </div>
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2">
+                <p className="text-muted-foreground">Year 5 ROI</p>
+                <p className="text-lg font-bold text-emerald-500">{Math.round(rp.year5ROI)}%</p>
+              </div>
+            </div>
+            <div className="mt-3 text-[10px] text-muted-foreground">
+              {rp.mannedShifts} manned + {rp.unmannedShifts} unmanned shifts · {rp.hrsPerShift} hrs/shift · {rp.capacityMult.toFixed(1)}x capacity · Sec. 179 tax savings: {USD(Math.round(rp.taxSavings))}
+            </div>
           </Card>
         )}
 
@@ -564,58 +627,3 @@ function Kpi({
   );
 }
 
-function HourlyOperatingCost({ rp, totalPrice }: { rp: RoiParams; totalPrice: number }) {
-  // Derive hourly costs if not stored on the quote (backwards-compatible)
-  const totalHrsPerYear =
-    (rp.mannedShifts + rp.unmannedShifts) * rp.hrsPerShift * rp.workingDays;
-
-  const power    = rp.powerCostPerHr    ?? 1.8;  // ~15 kW avg × $0.12/kWh
-  const maint    = rp.maintenanceCostPerHr ?? 1.2;
-  const consum   = rp.consumablesCostPerHr ?? 2.0;
-  const amort    = rp.amortizedCostPerHr
-    ?? (totalHrsPerYear > 0 ? totalPrice / (totalHrsPerYear * 5) : 0); // 5-yr straight-line
-  const total    = rp.hourlyOperatingCost ?? power + maint + consum + amort;
-
-  const breakdown = [
-    { label: "Power & Utilities", value: power },
-    { label: "Scheduled Maintenance", value: maint },
-    { label: "Consumables (grippers, jaws, filters)", value: consum },
-    { label: "Amortized Capital (5-yr straight-line)", value: amort },
-  ];
-
-  return (
-    <div className="grid md:grid-cols-[auto_1fr] gap-6">
-      <div className="rounded-xl bg-primary/5 border border-primary/10 p-5 md:w-56 text-center md:text-left">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          Total Hourly Cost
-        </p>
-        <p className="text-3xl font-bold text-primary">
-          {USD(total, 2)}
-          <span className="text-sm font-normal text-muted-foreground">/hr</span>
-        </p>
-        <p className="text-xs text-muted-foreground mt-2">
-          Based on {totalHrsPerYear.toLocaleString()} scheduled hrs/year
-        </p>
-      </div>
-      <dl className="space-y-2 text-sm">
-        {breakdown.map((b) => {
-          const pct = total > 0 ? (b.value / total) * 100 : 0;
-          return (
-            <div key={b.label}>
-              <div className="flex justify-between mb-1">
-                <dt className="text-muted-foreground">{b.label}</dt>
-                <dd className="font-medium text-foreground tabular-nums">{USD(b.value, 2)}/hr</dd>
-              </div>
-              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary/70"
-                  style={{ width: `${Math.min(100, pct)}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </dl>
-    </div>
-  );
-}
