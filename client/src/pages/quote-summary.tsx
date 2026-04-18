@@ -500,8 +500,6 @@ export default function QuoteSummary() {
           </Card>
         </div>
 
-        {/* Product Brochures — merged into one document */}
-        <BrochureEmbed machineName={quote.machineName} />
 
         {/* Footer */}
         <div className="text-center py-8 border-t border-border/30">
