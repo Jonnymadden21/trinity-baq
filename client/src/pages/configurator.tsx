@@ -86,9 +86,6 @@ export default function Configurator() {
     mannedShifts: 1, unmannedShifts: 1,
     mannedUtilBefore: 26, mannedUtilAfter: 80,
     unmannedUtilBefore: 0, unmannedUtilAfter: 70,
-    powerCostPerHr: 1.80,
-    maintenanceCostPerHr: 1.20,
-    consumablesCostPerHr: 2.00,
   });
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const defaultsAppliedRef = useRef(false);
@@ -180,7 +177,6 @@ export default function Configurator() {
       mannedShifts, unmannedShifts, hrsPerShift, shopRate, workingDays,
       operatorWage, mannedUtilBefore, mannedUtilAfter,
       unmannedUtilBefore, unmannedUtilAfter,
-      powerCostPerHr, maintenanceCostPerHr, consumablesCostPerHr,
     } = roi;
 
     // Manned
@@ -200,18 +196,13 @@ export default function Configurator() {
     // Combined
     const totalGainHrs = mannedGainHrs + unmannedGainHrs;
     const totalGainRev = mannedGainRev + unmannedGainRev;
-
-    // Operating costs (calculated from real inputs)
     const totalAutoHrs = mannedAfter + unmannedAfter;
-    const hourlyOpCost = powerCostPerHr + maintenanceCostPerHr + consumablesCostPerHr;
-    const opCost = totalAutoHrs * hourlyOpCost * workingDays;
 
     // Labor reallocation (50% of wage saved)
     const laborSaving = operatorWage * mannedGainHrs * workingDays * 0.5;
 
-    // Net
-    const grossBenefit = totalGainRev + laborSaving;
-    const netBenefit = grossBenefit - opCost;
+    // Net (revenue + labor savings, no operating cost deduction)
+    const netBenefit = totalGainRev + laborSaving;
     const investment = totalPrice;
     const paybackMonths = netBenefit > 0 ? (investment / netBenefit) * 12 : 0;
     const year1ROI = investment > 0 ? ((netBenefit - investment) / investment) * 100 : 0;
@@ -229,11 +220,11 @@ export default function Configurator() {
 
     return {
       mannedGainHrs, unmannedGainHrs, mannedGainRev, unmannedGainRev,
-      totalGainHrs, totalGainRev, totalAutoHrs, opCost, laborSaving,
-      grossBenefit, netBenefit, investment, paybackMonths,
+      totalGainHrs, totalGainRev, totalAutoHrs, laborSaving,
+      netBenefit, investment, paybackMonths,
       year1ROI, year3ROI, year5ROI,
       totalHrsBefore, totalHrsAfter, capacityMult,
-      taxSavings, effectiveCost, hourlyOpCost,
+      taxSavings, effectiveCost,
     };
   }, [totalPrice, roi]);
 
@@ -726,44 +717,6 @@ export default function Configurator() {
                 </div>
               </div>
 
-              {/* === OPERATING COST INPUTS === */}
-              <div className="rounded-lg border border-border/50 p-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  Hourly Operating Cost
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-[10px]">Power & Utilities</Label>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px] text-muted-foreground">$</span>
-                      <Input type="number" value={roi.powerCostPerHr} onChange={(e) => setRoi((p) => ({ ...p, powerCostPerHr: Number(e.target.value) || 0 }))} min={0} max={20} step={0.10} className="h-8 text-xs" />
-                      <span className="text-[10px] text-muted-foreground">/hr</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-[10px]">Maintenance</Label>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px] text-muted-foreground">$</span>
-                      <Input type="number" value={roi.maintenanceCostPerHr} onChange={(e) => setRoi((p) => ({ ...p, maintenanceCostPerHr: Number(e.target.value) || 0 }))} min={0} max={20} step={0.10} className="h-8 text-xs" />
-                      <span className="text-[10px] text-muted-foreground">/hr</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-[10px]">Consumables</Label>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px] text-muted-foreground">$</span>
-                      <Input type="number" value={roi.consumablesCostPerHr} onChange={(e) => setRoi((p) => ({ ...p, consumablesCostPerHr: Number(e.target.value) || 0 }))} min={0} max={20} step={0.10} className="h-8 text-xs" />
-                      <span className="text-[10px] text-muted-foreground">/hr</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline justify-between rounded-lg bg-primary/5 border border-primary/10 p-3">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total hourly operating cost</span>
-                  <span className="text-xl font-bold text-primary">{USD(roiCalc.hourlyOpCost, 2)}<span className="text-sm font-normal text-muted-foreground">/hr</span></span>
-                </div>
-              </div>
-
               <Separator />
 
               {/* === HERO STATS === */}
@@ -893,18 +846,6 @@ export default function Configurator() {
                   </div>
                   <span className="font-semibold text-emerald-500">{USD(Math.round(roiCalc.laborSaving))}</span>
                 </div>
-                <div className="flex justify-between font-semibold">
-                  <span className="text-foreground">Gross Benefit</span>
-                  <span className="text-emerald-500">{USD(Math.round(roiCalc.grossBenefit))}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between text-red-400">
-                  <div>
-                    <span>Less: Operating Costs ({USD(roiCalc.hourlyOpCost, 2)}/hr)</span>
-                    <p className="text-[10px] text-muted-foreground/70">{roiCalc.totalAutoHrs.toFixed(1)} hrs/day × {USD(roiCalc.hourlyOpCost, 2)} × {roi.workingDays} days</p>
-                  </div>
-                  <span className="font-semibold">-{USD(Math.round(roiCalc.opCost))}</span>
-                </div>
                 <Separator />
                 <div className="flex justify-between text-base font-bold">
                   <span className="text-foreground">Net Annual Benefit</span>
@@ -1006,10 +947,6 @@ export default function Configurator() {
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>{selectedCount} option{selectedCount !== 1 ? "s" : ""}</span>
                     <span>Est. {USD(Math.round(financingCalc.monthlyPayment))}/mo</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Operating cost</span>
-                    <span className="font-semibold text-foreground">{USD(roiCalc.hourlyOpCost, 2)}/hr</span>
                   </div>
                   {roiCalc.paybackMonths > 0 && roiCalc.paybackMonths < 999 && (
                     <div className="flex justify-between text-xs">

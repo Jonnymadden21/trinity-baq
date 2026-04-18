@@ -448,18 +448,6 @@ export default function QuoteSummary() {
                 </div>
                 <span className="font-semibold text-emerald-500">{USD(Math.round(rp.laborSaving))}</span>
               </div>
-              <div className="flex justify-between font-semibold">
-                <span className="text-foreground">Gross Benefit</span>
-                <span className="text-emerald-500">{USD(Math.round(rp.grossBenefit ?? (rp.totalGainRev + rp.laborSaving)))}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-red-400">
-                <div>
-                  <span>Less: Operating Costs (~$5/hr)</span>
-                  <p className="text-[10px] text-muted-foreground/70">{rp.totalAutoHrs?.toFixed(1) ?? "—"} hrs/day × $5 × {rp.workingDays} days</p>
-                </div>
-                <span className="font-semibold">-{USD(Math.round(rp.opCost))}</span>
-              </div>
               <Separator />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-foreground">Net Annual Benefit</span>
@@ -511,6 +499,50 @@ export default function QuoteSummary() {
             </ol>
           </Card>
         </div>
+
+        {/* Product Brochures */}
+        {(() => {
+          const brochureMap: Record<string, string[]> = {
+            "ax1-12": ["ax1-spec.pdf"],
+            "ax1-18": ["ax1-spec.pdf"],
+            "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+            "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+            "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+            "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+            "ax4-12": ["ax4-spec.pdf"],
+            "ax4-12-hd": ["ax4-spec.pdf"],
+            "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
+            "ax5-20-hd": ["ax5-hd-brochure.pdf"],
+          };
+          const slug = quote.machineName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+          const files = brochureMap[slug];
+          if (!files || files.length === 0) return null;
+          return (
+            <div className="mb-8">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
+                {quote.machineName} Product Documentation
+              </h3>
+              <div className="space-y-4">
+                {files.map((file) => (
+                  <div key={file} className="rounded-lg border border-border/50 overflow-hidden">
+                    <embed
+                      src={`/brochures/${file}`}
+                      type="application/pdf"
+                      className="w-full"
+                      style={{ height: "800px" }}
+                    />
+                    <div className="p-3 bg-muted/30 flex items-center justify-between print:hidden">
+                      <span className="text-xs text-muted-foreground">{file.replace(/-/g, " ").replace(".pdf", "").toUpperCase()}</span>
+                      <a href={`/brochures/${file}`} download className="text-xs text-primary font-medium hover:underline">
+                        Download PDF
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Footer */}
         <div className="text-center py-8 border-t border-border/30">
@@ -587,7 +619,6 @@ function RoiCard({ rp, totalPrice }: { rp: RoiParams; totalPrice: number }) {
       <dl className="space-y-2 text-sm">
         <Row label="New Revenue (Utilization Gains)" value={USD(Math.round(rp.totalGainRev))} />
         <Row label="Labor Reallocation Value" value={USD(Math.round(rp.laborSaving))} />
-        <Row label="Operating Costs" value={`-${USD(Math.round(rp.opCost))}`} />
         <Separator className="my-1" />
         <Row label="Net Annual Benefit" value={USD(Math.round(rp.netBenefit))} bold />
       </dl>

@@ -529,37 +529,42 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
     footer();
   }
 
-  // --- Merge product brochure if one exists for this machine ---
-  const brochureMap: Record<string, string> = {
-    "ax1-12": "ax1.pdf", "ax1-18": "ax1.pdf",
-    "ax2-16": "ax2.pdf", "ax2-24": "ax2.pdf",
-    "ax2-16-duo": "ax2-duo.pdf", "ax2-24-duo": "ax2-duo.pdf",
-    "ax4-12": "ax4.pdf", "ax4-12-hd": "ax4.pdf",
-    "ax5-20": "ax5.pdf",
-    "ax5-20-hd": "ax5-hd.pdf",
+  // --- Merge product brochures if they exist for this machine ---
+  const brochureMap: Record<string, string[]> = {
+    "ax1-12": ["ax1-spec.pdf"],
+    "ax1-18": ["ax1-spec.pdf"],
+    "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+    "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+    "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+    "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+    "ax4-12": ["ax4-spec.pdf"],
+    "ax4-12-hd": ["ax4-spec.pdf"],
+    "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
+    "ax5-20-hd": ["ax5-hd-brochure.pdf"],
   };
 
   const machineSlug = quote.machineName
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
-  const brochureFile = brochureMap[machineSlug];
+  const brochureFiles = brochureMap[machineSlug];
 
-  if (brochureFile) {
+  if (brochureFiles && brochureFiles.length > 0) {
     try {
       const { PDFDocument } = await import("pdf-lib");
       const quoteBytes = doc.output("arraybuffer");
-      const brochureBytes = await fetch(`/brochures/${brochureFile}`).then((r) => r.arrayBuffer());
 
       const merged = await PDFDocument.create();
       const quotePdf = await PDFDocument.load(quoteBytes);
-      const brochurePdf = await PDFDocument.load(brochureBytes);
-
       const quotePages = await merged.copyPages(quotePdf, quotePdf.getPageIndices());
       for (const page of quotePages) merged.addPage(page);
 
-      const brochurePages = await merged.copyPages(brochurePdf, brochurePdf.getPageIndices());
-      for (const page of brochurePages) merged.addPage(page);
+      for (const file of brochureFiles) {
+        const bytes = await fetch(`/brochures/${file}`).then((r) => r.arrayBuffer());
+        const brochurePdf = await PDFDocument.load(bytes);
+        const pages = await merged.copyPages(brochurePdf, brochurePdf.getPageIndices());
+        for (const page of pages) merged.addPage(page);
+      }
 
       const mergedBytes = await merged.save();
       const blob = new Blob([mergedBytes], { type: "application/pdf" });
