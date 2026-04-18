@@ -529,5 +529,51 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
     footer();
   }
 
+  // --- Merge product brochure if one exists for this machine ---
+  const brochureMap: Record<string, string> = {
+    "ax1-12": "ax1.pdf", "ax1-18": "ax1.pdf",
+    "ax2-16": "ax2.pdf", "ax2-24": "ax2.pdf",
+    "ax2-16-duo": "ax2-duo.pdf", "ax2-24-duo": "ax2-duo.pdf",
+    "ax4-12": "ax4.pdf", "ax4-12-hd": "ax4.pdf",
+    "ax5-20": "ax5.pdf",
+    "ax5-20-hd": "ax5-hd.pdf",
+  };
+
+  const machineSlug = quote.machineName
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  const brochureFile = brochureMap[machineSlug];
+
+  if (brochureFile) {
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+      const quoteBytes = doc.output("arraybuffer");
+      const brochureBytes = await fetch(`/brochures/${brochureFile}`).then((r) => r.arrayBuffer());
+
+      const merged = await PDFDocument.create();
+      const quotePdf = await PDFDocument.load(quoteBytes);
+      const brochurePdf = await PDFDocument.load(brochureBytes);
+
+      const quotePages = await merged.copyPages(quotePdf, quotePdf.getPageIndices());
+      for (const page of quotePages) merged.addPage(page);
+
+      const brochurePages = await merged.copyPages(brochurePdf, brochurePdf.getPageIndices());
+      for (const page of brochurePages) merged.addPage(page);
+
+      const mergedBytes = await merged.save();
+      const blob = new Blob([mergedBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Trinity-Quote-${quote.quoteNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    } catch (err) {
+      console.warn("Brochure merge failed, saving quote only:", err);
+    }
+  }
+
   doc.save(`Trinity-Quote-${quote.quoteNumber}.pdf`);
 }
