@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 
@@ -500,49 +500,8 @@ export default function QuoteSummary() {
           </Card>
         </div>
 
-        {/* Product Brochures */}
-        {(() => {
-          const brochureMap: Record<string, string[]> = {
-            "ax1-12": ["ax1-spec.pdf"],
-            "ax1-18": ["ax1-spec.pdf"],
-            "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-            "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-            "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-            "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-            "ax4-12": ["ax4-spec.pdf"],
-            "ax4-12-hd": ["ax4-spec.pdf"],
-            "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
-            "ax5-20-hd": ["ax5-hd-brochure.pdf"],
-          };
-          const slug = quote.machineName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-          const files = brochureMap[slug];
-          if (!files || files.length === 0) return null;
-          return (
-            <div className="mb-8">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                {quote.machineName} Product Documentation
-              </h3>
-              <div className="space-y-4">
-                {files.map((file) => (
-                  <div key={file} className="rounded-lg border border-border/50 overflow-hidden">
-                    <embed
-                      src={`/brochures/${file}`}
-                      type="application/pdf"
-                      className="w-full"
-                      style={{ height: "800px" }}
-                    />
-                    <div className="p-3 bg-muted/30 flex items-center justify-between print:hidden">
-                      <span className="text-xs text-muted-foreground">{file.replace(/-/g, " ").replace(".pdf", "").toUpperCase()}</span>
-                      <a href={`/brochures/${file}`} download className="text-xs text-primary font-medium hover:underline">
-                        Download PDF
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        {/* Product Brochures — merged into one document */}
+        <BrochureEmbed machineName={quote.machineName} />
 
         {/* Footer */}
         <div className="text-center py-8 border-t border-border/30">
@@ -633,6 +592,82 @@ function RoiCard({ rp, totalPrice }: { rp: RoiParams; totalPrice: number }) {
         {USD(Math.round(rp.taxSavings))} savings
       </p>
     </Card>
+  );
+}
+
+const BROCHURE_MAP: Record<string, string[]> = {
+  "ax1-12": ["ax1-spec.pdf"],
+  "ax1-18": ["ax1-spec.pdf"],
+  "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+  "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+  "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+  "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+  "ax4-12": ["ax4-spec.pdf"],
+  "ax4-12-hd": ["ax4-spec.pdf"],
+  "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
+  "ax5-20-hd": ["ax5-hd-brochure.pdf"],
+};
+
+function BrochureEmbed({ machineName }: { machineName: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  const slug = machineName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  const files = BROCHURE_MAP[slug];
+
+  useEffect(() => {
+    if (!files || files.length === 0) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { PDFDocument } = await import("pdf-lib");
+        const merged = await PDFDocument.create();
+
+        for (const file of files) {
+          const bytes = await fetch(`/brochures/${file}`).then((r) => r.arrayBuffer());
+          const pdf = await PDFDocument.load(bytes);
+          const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+          for (const page of pages) merged.addPage(page);
+        }
+
+        const mergedBytes = await merged.save();
+        if (cancelled) return;
+        const blob = new Blob([mergedBytes], { type: "application/pdf" });
+        setBlobUrl(URL.createObjectURL(blob));
+      } catch (err) {
+        console.warn("Failed to merge brochures:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [files]);
+
+  if (!files || files.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
+        Product Documentation
+      </h3>
+      {blobUrl ? (
+        <div className="rounded-xl border border-border/50 overflow-hidden">
+          <iframe
+            src={blobUrl}
+            className="w-full border-0"
+            style={{ height: "900px" }}
+            title="Product Brochure"
+          />
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/50 p-8 text-center">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground mb-2" />
+          <p className="text-xs text-muted-foreground">Loading product documentation...</p>
+        </div>
+      )}
+    </div>
   );
 }
 
