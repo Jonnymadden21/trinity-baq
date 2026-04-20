@@ -1,14 +1,3 @@
-// pdf-export.ts
-// Fast, crisp, vector-based PDF export for Trinity quotes.
-//
-// Why this replaces html2pdf.js:
-//   • html2pdf.js rasterizes the entire DOM with html2canvas → 5-10s freeze,
-//     giant file sizes, blurry text, dark-mode backgrounds that look bad on paper.
-//   • jsPDF draws vector text directly: <1s, selectable/searchable text, tiny file,
-//     clean white print-ready layout, professional brand treatment.
-//
-// Bundle impact: jsPDF is ~150kb gzipped vs html2pdf (~600kb). Loaded lazily.
-
 import type { Quote } from "@shared/schema";
 
 type SelectedOption = {
@@ -39,19 +28,18 @@ type RoiParams = {
   unmannedShifts: number;
   capacityMult: number;
   totalGainRev: number;
+  mannedGainRev: number;
+  unmannedGainRev: number;
+  mannedGainHrs: number;
+  unmannedGainHrs: number;
   laborSaving: number;
-  opCost: number;
   netBenefit: number;
   paybackMonths: number;
   year1ROI: number;
   year3ROI: number;
   year5ROI: number;
   taxSavings: number;
-  hourlyOperatingCost?: number;
-  powerCostPerHr?: number;
-  maintenanceCostPerHr?: number;
-  consumablesCostPerHr?: number;
-  amortizedCostPerHr?: number;
+  effectiveCost: number;
 } | null;
 
 export type ExportQuoteArgs = {
@@ -61,47 +49,35 @@ export type ExportQuoteArgs = {
   roi: RoiParams;
 };
 
-// Brand palette — print-optimized
 const BRAND = {
-  primary: [14, 116, 144] as [number, number, number],   // teal-ish
+  primary: [14, 116, 144] as [number, number, number],
   ink:     [22, 28, 38]   as [number, number, number],
   muted:   [110, 118, 129] as [number, number, number],
   line:    [225, 228, 232] as [number, number, number],
-  accent:  [16, 185, 129]  as [number, number, number],  // emerald
+  accent:  [16, 185, 129]  as [number, number, number],
   surface: [248, 250, 252] as [number, number, number],
+  red:     [220, 80, 80]   as [number, number, number],
 };
 
 const USD = (n: number, frac = 0) =>
-  "$" + n.toLocaleString("en-US", {
-    minimumFractionDigits: frac,
-    maximumFractionDigits: frac,
-  });
+  "$" + n.toLocaleString("en-US", { minimumFractionDigits: frac, maximumFractionDigits: frac });
 
 export async function exportQuotePdf({ quote, options, financing, roi }: ExportQuoteArgs) {
-  // Lazy-load jsPDF so it isn't in the initial bundle
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const M = 48; // margin
+  const M = 48;
   let y = M;
 
-  // ---- helpers ----
   const setColor = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
   const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
   const setStroke = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
 
   const text = (
-    s: string,
-    x: number,
-    yy: number,
-    opts: {
-      size?: number;
-      weight?: "normal" | "bold";
-      color?: [number, number, number];
-      align?: "left" | "right" | "center";
-    } = {}
+    s: string, x: number, yy: number,
+    opts: { size?: number; weight?: "normal" | "bold"; color?: [number, number, number]; align?: "left" | "right" | "center" } = {}
   ) => {
     doc.setFont("helvetica", opts.weight ?? "normal");
     doc.setFontSize(opts.size ?? 10);
@@ -110,272 +86,159 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
   };
 
   const hr = (yy: number) => {
-    setStroke(BRAND.line);
-    doc.setLineWidth(0.5);
-    doc.line(M, yy, pageW - M, yy);
+    setStroke(BRAND.line); doc.setLineWidth(0.5); doc.line(M, yy, pageW - M, yy);
   };
 
   const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - M - 40) {
-      footer();
-      doc.addPage();
-      y = M;
-      header(false);
-    }
+    if (y + needed > pageH - M - 40) { footer(); doc.addPage(); y = M; header(false); }
   };
 
   const header = (first: boolean) => {
-    // Brand strip
     setFill(BRAND.primary);
     doc.rect(0, 0, pageW, 6, "F");
 
     if (first) {
-      // Logo mark (vector triangle)
-      setStroke(BRAND.primary);
-      setFill(BRAND.primary);
-      doc.setLineWidth(2);
-      doc.triangle(M, M + 24, M + 13, M, M + 26, M + 24, "S");
-      doc.triangle(M + 5, M + 22, M + 13, M + 8, M + 21, M + 22, "F");
-
-      text("TRINITY", M + 34, M + 10, { size: 10, weight: "bold" });
-      text("AUTOMATION", M + 34, M + 22, { size: 8, weight: "bold", color: BRAND.primary });
-
-      // Right side: quote meta
-      text("SYSTEM QUOTATION", pageW - M, M + 8, {
-        size: 8, weight: "bold", color: BRAND.muted, align: "right",
-      });
-      text(`#${quote.quoteNumber}`, pageW - M, M + 22, {
-        size: 14, weight: "bold", align: "right",
-      });
+      text("TRINITY", M, M + 12, { size: 11, weight: "bold" });
+      text("AUTOMATION", M, M + 24, { size: 9, weight: "bold", color: BRAND.primary });
+      text("SYSTEM QUOTATION", pageW - M, M + 10, { size: 8, weight: "bold", color: BRAND.muted, align: "right" });
+      text(`#${quote.quoteNumber}`, pageW - M, M + 24, { size: 14, weight: "bold", align: "right" });
       text(
-        new Date(quote.createdAt).toLocaleDateString("en-US", {
-          year: "numeric", month: "long", day: "numeric",
-        }),
-        pageW - M, M + 36, { size: 9, color: BRAND.muted, align: "right" }
+        new Date(quote.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        pageW - M, M + 38, { size: 9, color: BRAND.muted, align: "right" }
       );
-
-      y = M + 60;
-      hr(y);
-      y += 20;
+      y = M + 54; hr(y); y += 20;
     } else {
       text("TRINITY AUTOMATION", M, M + 14, { size: 8, weight: "bold", color: BRAND.muted });
-      text(`Quote #${quote.quoteNumber}`, pageW - M, M + 14, {
-        size: 8, color: BRAND.muted, align: "right",
-      });
-      y = M + 24;
+      text(`Quote #${quote.quoteNumber}`, pageW - M, M + 14, { size: 8, color: BRAND.muted, align: "right" });
+      y = M + 28;
     }
   };
 
   const footer = () => {
     const yy = pageH - M + 16;
-    setStroke(BRAND.line);
-    doc.setLineWidth(0.5);
-    doc.line(M, yy - 10, pageW - M, yy - 10);
-
-    text(
-      "Trinity Robotics Automation, LLC · Ontario, CA · (800) 762-6864 · sales@trinityautomation.com",
-      M, yy, { size: 8, color: BRAND.muted }
-    );
-
+    hr(yy - 10);
+    text("Trinity Robotics Automation, LLC · Ontario, CA · (800) 762-6864 · sales@trinityautomation.com", M, yy, { size: 7, color: BRAND.muted });
     const pageCount = doc.getNumberOfPages();
     const currentPage = doc.getCurrentPageInfo().pageNumber;
-    text(`Page ${currentPage} of ${pageCount}`, pageW - M, yy, {
-      size: 8, color: BRAND.muted, align: "right",
-    });
+    text(`Page ${currentPage} of ${pageCount}`, pageW - M, yy, { size: 7, color: BRAND.muted, align: "right" });
   };
 
-  // =============== PAGE 1 ===============
+  // =============== PAGE 1 — QUOTE ===============
   header(true);
 
-  // ---- Customer + Total block ----
-  const colW = (pageW - M * 2 - 20) / 2;
-
-  // Prepared For
+  // Customer info
   text("PREPARED FOR", M, y, { size: 8, weight: "bold", color: BRAND.muted });
   y += 14;
   text(quote.customerName, M, y, { size: 11, weight: "bold" });
   y += 13;
   text(quote.customerEmail, M, y, { size: 9, color: BRAND.muted });
-  if (quote.customerCompany) {
-    y += 12; text(quote.customerCompany, M, y, { size: 9, color: BRAND.muted });
-  }
-  if (quote.customerPhone) {
-    y += 12; text(quote.customerPhone, M, y, { size: 9, color: BRAND.muted });
-  }
+  if (quote.customerCompany) { y += 12; text(quote.customerCompany, M, y, { size: 9, color: BRAND.muted }); }
+  if (quote.customerPhone) { y += 12; text(quote.customerPhone, M, y, { size: 9, color: BRAND.muted }); }
 
-  // Total (right column, same top)
-  const totalY = y - (quote.customerCompany ? 25 : 13) - (quote.customerPhone ? 12 : 0);
-  const totalBoxY = M + 70;
+  // Total price box (right)
+  const colW = (pageW - M * 2 - 20) / 2;
+  const boxY = M + 66;
   setFill(BRAND.surface);
-  doc.roundedRect(M + colW + 20, totalBoxY, colW, 66, 6, 6, "F");
-
-  text("TOTAL SYSTEM PRICE", M + colW + 32, totalBoxY + 16, {
-    size: 8, weight: "bold", color: BRAND.muted,
-  });
-  text(USD(quote.totalPrice, 2), M + colW + 32, totalBoxY + 42, {
-    size: 22, weight: "bold", color: BRAND.primary,
-  });
+  doc.roundedRect(M + colW + 20, boxY, colW, 60, 6, 6, "F");
+  text("TOTAL SYSTEM PRICE", M + colW + 32, boxY + 16, { size: 8, weight: "bold", color: BRAND.muted });
+  text(USD(quote.totalPrice, 2), M + colW + 32, boxY + 40, { size: 22, weight: "bold", color: BRAND.primary });
   if (financing) {
-    text(
-      `Est. ${USD(Math.round(financing.monthlyPayment))}/mo · ${financing.termMonths} mo @ ${financing.interestRate}% APR`,
-      M + colW + 32, totalBoxY + 58, { size: 8, color: BRAND.muted }
-    );
+    text(`Est. ${USD(Math.round(financing.monthlyPayment))}/mo · ${financing.termMonths} mo @ ${financing.interestRate}% APR`, M + colW + 32, boxY + 54, { size: 8, color: BRAND.muted });
   }
+  y = boxY + 76;
 
-  y = totalBoxY + 66 + 24;
-
-  // ---- System Configuration ----
-  ensureSpace(40);
+  // System configuration
   text("SYSTEM CONFIGURATION", M, y, { size: 8, weight: "bold", color: BRAND.muted });
   y += 14;
-
-  // Machine row
   setFill(BRAND.surface);
-  doc.roundedRect(M, y, pageW - M * 2, 36, 4, 4, "F");
-  text(quote.machineName, M + 14, y + 15, { size: 12, weight: "bold" });
-  text("Base System", M + 14, y + 28, { size: 8, color: BRAND.muted });
-  text(USD(quote.basePrice, 2), pageW - M - 14, y + 23, {
-    size: 12, weight: "bold", align: "right",
-  });
-  y += 48;
+  doc.roundedRect(M, y, pageW - M * 2, 32, 4, 4, "F");
+  text(quote.machineName, M + 12, y + 14, { size: 12, weight: "bold" });
+  text("Base System", M + 12, y + 26, { size: 8, color: BRAND.muted });
+  text(USD(quote.basePrice, 2), pageW - M - 12, y + 20, { size: 12, weight: "bold", align: "right" });
+  y += 44;
 
-  // ---- Line-item table ----
-  // Group added options
+  // Selected options table
   const grouped = new Map<string, SelectedOption[]>();
   const standardGrouped = new Map<string, SelectedOption[]>();
   for (const o of options) {
-    if (o.isStandard) {
-      const bucket = standardGrouped.get(o.category) ?? [];
-      bucket.push(o);
-      standardGrouped.set(o.category, bucket);
-    } else if (o.price > 0) {
-      const bucket = grouped.get(o.category) ?? [];
-      bucket.push(o);
-      grouped.set(o.category, bucket);
-    }
+    const target = o.isStandard ? standardGrouped : (o.price > 0 ? grouped : null);
+    if (!target) continue;
+    const bucket = target.get(o.category) ?? [];
+    bucket.push(o);
+    target.set(o.category, bucket);
   }
 
-  // Added Options
   if (grouped.size > 0) {
     ensureSpace(30);
     text("SELECTED OPTIONS", M, y, { size: 8, weight: "bold", color: BRAND.muted });
-    y += 12;
-
-    // Header row
-    setFill(BRAND.surface);
-    doc.rect(M, y, pageW - M * 2, 18, "F");
-    text("Item", M + 10, y + 12, { size: 8, weight: "bold", color: BRAND.muted });
-    text("Part #", M + 300, y + 12, { size: 8, weight: "bold", color: BRAND.muted });
-    text("Price", pageW - M - 10, y + 12, { size: 8, weight: "bold", color: BRAND.muted, align: "right" });
-    y += 22;
-
+    y += 14;
     for (const [category, opts] of grouped) {
-      ensureSpace(20 + opts.length * 18);
-      // Category sub-header
-      text(category.toUpperCase(), M, y, { size: 8, weight: "bold", color: BRAND.primary });
-      const subtotal = opts.reduce((s, o) => s + o.price, 0);
-      text(`Subtotal ${USD(subtotal)}`, pageW - M, y, {
-        size: 8, color: BRAND.muted, align: "right",
-      });
+      ensureSpace(20 + opts.length * 16);
+      text(category.toUpperCase(), M, y, { size: 7, weight: "bold", color: BRAND.primary });
       y += 10;
-      setStroke(BRAND.line);
-      doc.line(M, y, pageW - M, y);
-      y += 8;
-
       for (const o of opts) {
-        ensureSpace(18);
-        // zebra-stripe
-        const rowIdx = opts.indexOf(o);
-        if (rowIdx % 2 === 1) {
-          setFill([252, 253, 254]);
-          doc.rect(M, y - 10, pageW - M * 2, 18, "F");
-        }
-        // truncate name to ~55 chars
-        const name = o.name.length > 55 ? o.name.slice(0, 52) + "…" : o.name;
-        text(name, M + 10, y + 2, { size: 9 });
-        if (o.partNumber) {
-          text(o.partNumber, M + 300, y + 2, { size: 8, color: BRAND.muted });
-        }
-        text(USD(o.price), pageW - M - 10, y + 2, { size: 9, weight: "bold", align: "right" });
-        y += 16;
+        ensureSpace(16);
+        const name = o.name.length > 60 ? o.name.slice(0, 57) + "…" : o.name;
+        text(name, M + 8, y, { size: 9 });
+        if (o.partNumber) text(o.partNumber, M + 310, y, { size: 8, color: BRAND.muted });
+        text(USD(o.price), pageW - M, y, { size: 9, weight: "bold", align: "right" });
+        y += 14;
       }
-      y += 6;
+      y += 4;
     }
   }
 
-  // Standard features (condensed)
+  // Standard features
   if (standardGrouped.size > 0) {
     ensureSpace(24);
-    y += 6;
-    text("STANDARD FEATURES INCLUDED", M, y, {
-      size: 8, weight: "bold", color: BRAND.muted,
-    });
+    y += 4;
+    text("STANDARD FEATURES INCLUDED", M, y, { size: 8, weight: "bold", color: BRAND.muted });
     y += 12;
     for (const [category, opts] of standardGrouped) {
-      ensureSpace(18);
-      text(`${category}:`, M, y, { size: 8, weight: "bold" });
+      ensureSpace(16);
       const names = opts.map((o) => o.name).join(" · ");
-      const wrapped = doc.splitTextToSize(names, pageW - M * 2 - 80);
-      text(wrapped, M + 80, y, { size: 8, color: BRAND.muted });
-      y += 12 * (Array.isArray(wrapped) ? wrapped.length : 1) + 4;
+      const wrapped = doc.splitTextToSize(`${category}: ${names}`, pageW - M * 2);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      setColor(BRAND.muted);
+      doc.text(wrapped, M, y);
+      y += 11 * (Array.isArray(wrapped) ? wrapped.length : 1) + 2;
     }
   }
 
-  // ---- Totals ----
+  // Totals
   y += 8;
-  ensureSpace(90);
-  hr(y);
-  y += 14;
-
-  const rightCol = pageW - M;
-  const labelCol = pageW - M - 160;
-
-  text("Base System", labelCol, y, { size: 10, color: BRAND.muted });
-  text(USD(quote.basePrice, 2), rightCol, y, { size: 10, weight: "bold", align: "right" });
-  y += 16;
-
+  ensureSpace(80);
+  hr(y); y += 14;
+  const rc = pageW - M;
+  const lc = pageW - M - 160;
+  text("Base System", lc, y, { size: 10, color: BRAND.muted });
+  text(USD(quote.basePrice, 2), rc, y, { size: 10, weight: "bold", align: "right" }); y += 16;
   if (quote.optionsTotal > 0) {
-    text("Options Total", labelCol, y, { size: 10, color: BRAND.muted });
-    text(USD(quote.optionsTotal, 2), rightCol, y, { size: 10, weight: "bold", align: "right" });
-    y += 16;
+    text("Options Total", lc, y, { size: 10, color: BRAND.muted });
+    text(USD(quote.optionsTotal, 2), rc, y, { size: 10, weight: "bold", align: "right" }); y += 16;
   }
-  text("Tax", labelCol, y, { size: 10, color: BRAND.muted });
-  text("TBD", rightCol, y, { size: 10, color: BRAND.muted, align: "right" });
-  y += 16;
-  text("Freight / Rigging", labelCol, y, { size: 10, color: BRAND.muted });
-  text("TBD", rightCol, y, { size: 10, color: BRAND.muted, align: "right" });
-  y += 10;
-  setStroke(BRAND.ink);
-  doc.setLineWidth(1);
-  doc.line(labelCol, y, rightCol, y);
-  y += 16;
-  text("SYSTEM TOTAL", labelCol, y, { size: 11, weight: "bold" });
-  text(USD(quote.totalPrice, 2), rightCol, y, {
-    size: 16, weight: "bold", color: BRAND.primary, align: "right",
-  });
-  y += 24;
+  text("Tax", lc, y, { size: 10, color: BRAND.muted });
+  text("TBD", rc, y, { size: 10, color: BRAND.muted, align: "right" }); y += 16;
+  text("Freight / Rigging", lc, y, { size: 10, color: BRAND.muted });
+  text("TBD", rc, y, { size: 10, color: BRAND.muted, align: "right" }); y += 10;
+  setStroke(BRAND.ink); doc.setLineWidth(1); doc.line(lc, y, rc, y); y += 16;
+  text("SYSTEM TOTAL", lc, y, { size: 11, weight: "bold" });
+  text(USD(quote.totalPrice, 2), rc, y, { size: 16, weight: "bold", color: BRAND.primary, align: "right" }); y += 24;
 
-  // =============== PAGE 2 — Financials ===============
+  // =============== PAGE 2 — FINANCING + ROI ===============
   if (financing || roi) {
-    doc.addPage();
-    y = M;
-    header(false);
-    y += 10;
+    doc.addPage(); y = M; header(false); y += 10;
 
     if (financing) {
-      text("FINANCING SUMMARY", M, y, { size: 10, weight: "bold" });
-      y += 18;
+      text("FINANCING SUMMARY", M, y, { size: 10, weight: "bold" }); y += 18;
       setFill(BRAND.surface);
-      doc.roundedRect(M, y, pageW - M * 2, 56, 6, 6, "F");
-      text("ESTIMATED MONTHLY PAYMENT", M + 14, y + 16, {
-        size: 8, weight: "bold", color: BRAND.muted,
-      });
-      text(`${USD(Math.round(financing.monthlyPayment))}/mo`, M + 14, y + 42, {
-        size: 20, weight: "bold", color: BRAND.primary,
-      });
-      y += 70;
+      doc.roundedRect(M, y, pageW - M * 2, 52, 6, 6, "F");
+      text("ESTIMATED MONTHLY PAYMENT", M + 14, y + 14, { size: 8, weight: "bold", color: BRAND.muted });
+      text(`${USD(Math.round(financing.monthlyPayment))}/mo`, M + 14, y + 38, { size: 20, weight: "bold", color: BRAND.primary });
+      y += 66;
 
-      const rows: Array<[string, string]> = [
+      const rows: [string, string][] = [
         [`Down Payment (${financing.downPaymentPct}%)`, USD(Math.round(financing.downPayment))],
         ["Financed Amount", USD(Math.round(financing.financedAmount))],
         ["Term / Rate", `${financing.termMonths} months @ ${financing.interestRate}% APR`],
@@ -383,28 +246,34 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
       ];
       for (const [l, v] of rows) {
         text(l, M, y, { size: 10, color: BRAND.muted });
-        text(v, pageW - M, y, { size: 10, weight: "bold", align: "right" });
+        text(v, pageW - M, y, { size: 10, weight: "bold", align: "right" }); y += 16;
+      }
+
+      if (roi && roi.netBenefit > 0) {
+        y += 8;
+        setFill(BRAND.surface);
+        doc.roundedRect(M, y, pageW - M * 2, 34, 6, 6, "F");
+        const monthlyBenefit = Math.round(roi.netBenefit / 12);
+        text(`Monthly payment ${USD(Math.round(financing.monthlyPayment))} vs. monthly benefit ${USD(monthlyBenefit)}`, M + 14, y + 14, { size: 9, color: BRAND.muted });
+        if (monthlyBenefit > financing.monthlyPayment) {
+          text("This system pays for itself from day one.", M + 14, y + 26, { size: 9, weight: "bold", color: BRAND.accent });
+        }
+        y += 46;
+      } else {
         y += 16;
       }
-      y += 12;
     }
 
     if (roi) {
       ensureSpace(200);
-      text("RETURN ON INVESTMENT", M, y, { size: 10, weight: "bold" });
-      y += 18;
+      text("RETURN ON INVESTMENT", M, y, { size: 10, weight: "bold" }); y += 18;
 
-      // KPI strip (4 boxes)
+      // KPI boxes
       const kpiW = (pageW - M * 2 - 24) / 4;
-      const kpiH = 54;
-      const kpis: Array<[string, string, [number, number, number]]> = [
-        [
-          "PAYBACK",
-          roi.paybackMonths > 0 && roi.paybackMonths < 999
-            ? `${roi.paybackMonths.toFixed(1)} mo` : "—",
-          BRAND.accent,
-        ],
-        ["NET / YEAR", USD(Math.round(roi.netBenefit)), BRAND.accent],
+      const kpiH = 50;
+      const kpis: [string, string, [number, number, number]][] = [
+        ["NET ANNUAL BENEFIT", USD(Math.round(roi.netBenefit)), BRAND.accent],
+        ["PAYBACK PERIOD", roi.paybackMonths > 0 && roi.paybackMonths < 120 ? `${roi.paybackMonths.toFixed(1)} mo` : "120+", BRAND.accent],
         ["YEAR 5 ROI", `${Math.round(roi.year5ROI)}%`, BRAND.accent],
         ["CAPACITY", `${roi.capacityMult.toFixed(1)}x`, BRAND.primary],
       ];
@@ -412,104 +281,78 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
         const x = M + i * (kpiW + 8);
         setFill(BRAND.surface);
         doc.roundedRect(x, y, kpiW, kpiH, 6, 6, "F");
-        text(label, x + 10, y + 14, { size: 7, weight: "bold", color: BRAND.muted });
-        text(value, x + 10, y + 38, { size: 14, weight: "bold", color });
+        text(label, x + 8, y + 14, { size: 6, weight: "bold", color: BRAND.muted });
+        text(value, x + 8, y + 36, { size: 14, weight: "bold", color });
       });
-      y += kpiH + 20;
+      y += kpiH + 16;
 
-      const roiRows: Array<[string, string]> = [
-        ["New Revenue (Utilization Gains)", USD(Math.round(roi.totalGainRev))],
-        ["Labor Reallocation Value", USD(Math.round(roi.laborSaving))],
-        ["Operating Costs", `-${USD(Math.round(roi.opCost))}`],
-        ["Net Annual Benefit", USD(Math.round(roi.netBenefit))],
+      // ROI timeline
+      text("ROI TIMELINE", M, y, { size: 8, weight: "bold", color: BRAND.muted }); y += 14;
+      const roiYears: [string, string][] = [
+        ["Year 1", `${Math.round(roi.year1ROI)}%`],
+        ["Year 3", `${Math.round(roi.year3ROI)}%`],
+        ["Year 5", `${Math.round(roi.year5ROI)}%`],
       ];
-      for (const [l, v] of roiRows) {
-        text(l, M, y, { size: 10, color: BRAND.muted });
-        text(v, pageW - M, y, { size: 10, weight: "bold", align: "right" });
-        y += 16;
+      const tW = (pageW - M * 2 - 16) / 3;
+      roiYears.forEach(([label, value], i) => {
+        const x = M + i * (tW + 8);
+        setFill(BRAND.surface);
+        doc.roundedRect(x, y, tW, 32, 4, 4, "F");
+        text(label, x + 10, y + 13, { size: 8, color: BRAND.muted });
+        text(value, x + tW - 10, y + 13, { size: 14, weight: "bold", color: BRAND.accent, align: "right" });
+      });
+      y += 44;
+
+      // Annual breakdown
+      text("ANNUAL BENEFIT BREAKDOWN", M, y, { size: 8, weight: "bold", color: BRAND.muted }); y += 14;
+
+      const breakdownRows: [string, string, string, [number, number, number]][] = [
+        ["Manned Shift Improvement", `${roi.mannedGainHrs?.toFixed(1) ?? "—"} hrs/day × $${roi.shopRate} × ${roi.workingDays} days`, USD(Math.round(roi.mannedGainRev ?? 0)), BRAND.ink],
+      ];
+      if (roi.unmannedShifts > 0) {
+        breakdownRows.push(
+          ["Unmanned Shift — NEW Revenue", `${roi.unmannedGainHrs?.toFixed(1) ?? "—"} hrs/day × $${roi.shopRate} × ${roi.workingDays} days`, USD(Math.round(roi.unmannedGainRev ?? 0)), BRAND.ink]
+        );
       }
-      y += 8;
-      text(
-        `${roi.mannedShifts} manned + ${roi.unmannedShifts} unmanned shifts · $${roi.shopRate}/hr shop rate · Sec. 179 savings ${USD(Math.round(roi.taxSavings))}`,
-        M, y, { size: 8, color: BRAND.muted }
+      breakdownRows.push(
+        ["Labor Reallocation Value", `${roi.mannedGainHrs?.toFixed(1) ?? "—"} hrs × $${roi.operatorWage} × ${roi.workingDays} days × 50%`, USD(Math.round(roi.laborSaving)), BRAND.ink]
       );
-      y += 24;
 
-      // ===== HOURLY OPERATING COST — new, user-requested =====
-      ensureSpace(170);
-      text("HOURLY OPERATING COST", M, y, { size: 10, weight: "bold" });
-      y += 18;
-
-      const totalScheduledHrs =
-        (roi.mannedShifts + roi.unmannedShifts) * roi.hrsPerShift * roi.workingDays;
-
-      const power  = roi.powerCostPerHr        ?? 1.8;
-      const maint  = roi.maintenanceCostPerHr  ?? 1.2;
-      const consum = roi.consumablesCostPerHr  ?? 2.0;
-      const amort  = roi.amortizedCostPerHr    ??
-        (totalScheduledHrs > 0 ? quote.totalPrice / (totalScheduledHrs * 5) : 0);
-      const total  = roi.hourlyOperatingCost   ?? power + maint + consum + amort;
-
-      // Headline box
-      setFill(BRAND.surface);
-      doc.roundedRect(M, y, pageW - M * 2, 52, 6, 6, "F");
-      text("TOTAL COST TO OPERATE", M + 14, y + 16, {
-        size: 8, weight: "bold", color: BRAND.muted,
-      });
-      text(`${USD(total, 2)}/hr`, M + 14, y + 40, {
-        size: 20, weight: "bold", color: BRAND.primary,
-      });
-      text(
-        `Based on ${totalScheduledHrs.toLocaleString()} scheduled hours per year`,
-        pageW - M - 14, y + 40, { size: 8, color: BRAND.muted, align: "right" }
-      );
-      y += 64;
-
-      // Breakdown rows with bars
-      const breakdown: Array<[string, number]> = [
-        ["Power & Utilities", power],
-        ["Scheduled Maintenance", maint],
-        ["Consumables (grippers, jaws, filters)", consum],
-        ["Amortized Capital (5-yr straight-line)", amort],
-      ];
-      for (const [label, val] of breakdown) {
-        ensureSpace(24);
-        text(label, M, y, { size: 9, color: BRAND.ink });
-        text(`${USD(val, 2)}/hr`, pageW - M, y, {
-          size: 9, weight: "bold", align: "right",
-        });
-        y += 6;
-        // bar
-        const barW = pageW - M * 2;
-        setFill([235, 238, 242]);
-        doc.roundedRect(M, y, barW, 4, 2, 2, "F");
-        setFill(BRAND.primary);
-        const pct = total > 0 ? Math.min(1, val / total) : 0;
-        doc.roundedRect(M, y, barW * pct, 4, 2, 2, "F");
+      for (const [label, detail, value, color] of breakdownRows) {
+        ensureSpace(28);
+        text(label, M, y, { size: 9, color });
+        text(value, pageW - M, y, { size: 9, weight: "bold", color: BRAND.accent, align: "right" });
+        y += 11;
+        text(detail, M, y, { size: 7, color: BRAND.muted });
         y += 14;
       }
 
-      y += 8;
-      text(
-        "Operating cost estimates are industry averages; actual costs depend on facility rates and utilization. Amortized capital assumes 5-year straight-line depreciation across scheduled runtime.",
-        M, y, { size: 7, color: BRAND.muted }
-      );
-      const wrapped = doc.splitTextToSize(
-        "Operating cost estimates are industry averages; actual costs depend on facility rates and utilization. Amortized capital assumes 5-year straight-line depreciation across scheduled runtime.",
-        pageW - M * 2
-      );
-      doc.setFontSize(7);
-      doc.text(wrapped, M, y);
-      y += 10 * (Array.isArray(wrapped) ? wrapped.length : 1);
+      // Net total
+      y += 2;
+      setStroke(BRAND.ink); doc.setLineWidth(0.75); doc.line(M, y, pageW - M, y); y += 14;
+      text("NET ANNUAL BENEFIT", M, y, { size: 11, weight: "bold" });
+      text(USD(Math.round(roi.netBenefit)), pageW - M, y, { size: 16, weight: "bold", color: BRAND.accent, align: "right" });
+      y += 24;
+
+      // Section 179
+      ensureSpace(60);
+      setFill(BRAND.surface);
+      doc.roundedRect(M, y, pageW - M * 2, 44, 6, 6, "F");
+      text("SECTION 179 TAX BENEFIT", M + 14, y + 14, { size: 8, weight: "bold", color: BRAND.muted });
+      text(`Tax Savings: ${USD(Math.round(roi.taxSavings))}  ·  Effective Cost: ${USD(Math.round(roi.effectiveCost))}  ·  Adjusted Payback: ${roi.paybackMonths > 0 && roi.paybackMonths < 120 ? (roi.paybackMonths * 0.79).toFixed(1) + " mo" : "—"}`, M + 14, y + 32, { size: 9, color: BRAND.ink });
+      y += 56;
+
+      // Footnote
+      text(`Based on ${roi.mannedShifts} manned + ${roi.unmannedShifts} unmanned shifts · ${roi.hrsPerShift} hrs/shift · $${roi.shopRate}/hr shop rate · ${roi.workingDays} working days/year`, M, y, { size: 7, color: BRAND.muted });
+      y += 20;
     }
   }
 
-  // ---- Details page ----
+  // Terms & Details
   ensureSpace(100);
-  y += 20;
-  text("TERMS & DETAILS", M, y, { size: 10, weight: "bold" });
-  y += 16;
-  const details: Array<[string, string]> = [
+  y += 10;
+  text("TERMS & DETAILS", M, y, { size: 10, weight: "bold" }); y += 16;
+  const details: [string, string][] = [
     ["Lead Time", "8 Weeks from signed PO"],
     ["FOB", "Ontario, CA 91761"],
     ["Warranty", "1 Year Standard · Extended options available"],
@@ -518,54 +361,40 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
   ];
   for (const [l, v] of details) {
     text(l, M, y, { size: 9, color: BRAND.muted });
-    text(v, M + 140, y, { size: 9, weight: "bold" });
-    y += 14;
+    text(v, M + 140, y, { size: 9, weight: "bold" }); y += 14;
   }
 
-  // Stamp all pages with footer
-  const total = doc.getNumberOfPages();
-  for (let i = 1; i <= total; i++) {
-    doc.setPage(i);
-    footer();
-  }
+  // Stamp footers
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) { doc.setPage(i); footer(); }
 
-  // --- Merge product brochures if they exist for this machine ---
+  // --- Merge brochures ---
   const brochureMap: Record<string, string[]> = {
-    "ax1-12": ["ax1-spec.pdf"],
-    "ax1-18": ["ax1-spec.pdf"],
-    "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-    "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-    "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-    "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-    "ax4-12": ["ax4-spec.pdf"],
-    "ax4-12-hd": ["ax4-spec.pdf"],
+    "ax1-12": ["ax1-spec.pdf"], "ax1-18": ["ax1-spec.pdf"],
+    "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"], "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
+    "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"], "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
+    "ax4-12": ["ax4-spec.pdf"], "ax4-12-hd": ["ax4-spec.pdf"],
     "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
     "ax5-20-hd": ["ax5-hd-brochure.pdf"],
   };
 
-  const machineSlug = quote.machineName
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+  const machineSlug = quote.machineName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const brochureFiles = brochureMap[machineSlug];
 
   if (brochureFiles && brochureFiles.length > 0) {
     try {
       const { PDFDocument } = await import("pdf-lib");
       const quoteBytes = doc.output("arraybuffer");
-
       const merged = await PDFDocument.create();
       const quotePdf = await PDFDocument.load(quoteBytes);
       const quotePages = await merged.copyPages(quotePdf, quotePdf.getPageIndices());
       for (const page of quotePages) merged.addPage(page);
-
       for (const file of brochureFiles) {
         const bytes = await fetch(`/brochures/${file}`).then((r) => r.arrayBuffer());
         const brochurePdf = await PDFDocument.load(bytes);
         const pages = await merged.copyPages(brochurePdf, brochurePdf.getPageIndices());
         for (const page of pages) merged.addPage(page);
       }
-
       const mergedBytes = await merged.save();
       const blob = new Blob([mergedBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
