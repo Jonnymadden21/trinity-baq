@@ -58,27 +58,43 @@ export default function QuoteSummary() {
   return (
     <>
       <style>{`
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; } .np { display: none !important; } .pb { page-break-after: always; } }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; }
+          .np { display: none !important; }
+          .pb { page-break-after: always; }
+          @page { margin: 0.5in 0.6in 1in 0.6in; }
+          .print-ft { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 6px 0.6in; font-size: 7.5px; color: #aaa; border-top: 1px solid #eee; background: #fff; }
+          .print-ft img { height: 14px; margin: 0 auto 2px; display: block; }
+          .ft-inline { display: none !important; }
+        }
+        @media screen { .print-ft { display: none; } }
         .pr { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; color: #1a1a1a; line-height: 1.45; font-size: 10px; }
         .pr table { border-collapse: collapse; width: 100%; }
-        .pr th { background: #4a4a4a; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; font-size: 9px; }
-        .pr td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 9.5px; vertical-align: top; }
+        .pr th { background: #4a4a4a; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; font-size: 9px; vertical-align: middle; }
+        .pr td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 9.5px; vertical-align: middle; }
         .pr tr:nth-child(even) td { background: #fafafb; }
         .pr .g { color: #D4A843; } .pr .m { color: #888; } .pr .gn { color: #0fa06e; }
         .pr .hd { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 14px; }
         .pr .st { font-size: 14px; font-weight: 700; margin: 18px 0 3px; } .pr .gb { width: 50px; height: 2px; background: #D4A843; margin-bottom: 10px; }
-        .pr .ft { text-align: center; padding: 8px 0; margin-top: 14px; border-top: 1px solid #eee; font-size: 7.5px; color: #aaa; }
+        .pr .ft-inline { text-align: center; padding: 8px 0; margin-top: 14px; border-top: 1px solid #eee; font-size: 7.5px; color: #aaa; }
         .pr .cg { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid #ddd; font-size: 9.5px; margin-bottom: 14px; }
         .pr .ch { background: #4a4a4a; color: #fff; font-weight: 600; padding: 4px 8px; font-size: 9px; }
         .pr .cc { padding: 8px; border-right: 1px solid #ddd; line-height: 1.5; } .pr .cc:last-child { border-right: none; }
         .pr .kg { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
         .pr .kb { background: #f5f5f5; border-radius: 4px; padding: 7px; text-align: center; }
-        .pr .kl { font-size: 7px; text-transform: uppercase; letter-spacing: .5px; color: #888; } .pr .kv { font-size: 16px; font-weight: 700; }
-        .pr .br { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f0f0; } .pr .bd { font-size: 8px; color: #999; }
+        .pr .kl { font-size: 7px; text-transform: uppercase; letter-spacing: .5px; color: #888; margin: 0; } .pr .kv { font-size: 16px; font-weight: 700; margin: 2px 0 0; }
+        .pr .br { display: flex; justify-content: space-between; align-items: flex-start; padding: 4px 0; border-bottom: 1px solid #f0f0f0; } .pr .bd { font-size: 8px; color: #999; }
         .pr .tt { font-size: 11px; font-weight: 700; border-bottom: 1px solid #1a1a1a; padding-bottom: 1px; margin: 10px 0 4px; }
         .pr .ti { font-size: 8.5px; padding-left: 14px; margin-bottom: 2px; line-height: 1.45; }
         .pr .sl { border-bottom: 1px solid #333; display: inline-block; min-width: 150px; margin: 0 4px; }
       `}</style>
+
+      {/* Fixed footer that appears at bottom of every printed page */}
+      <div className="print-ft">
+        <img src="/trinity-logo.jpeg" alt="Trinity" />
+        <p>Trinityautomation.com • Sales@trinityautomation.com • (800) 762-6864</p>
+        <p>NorCal - 431 Nelo Street Santa Clara, CA 95054 • SoCal - 4582 Brickell Privado Ontario, CA 91761</p>
+      </div>
 
       <div className="np border-b bg-white sticky top-0 z-40">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
@@ -350,7 +366,7 @@ function Hd({ s, q, first }: { s: string; q: Quote; first?: boolean }) {
   );
 }
 
-function Ft() { return <div className="ft"><img src="/trinity-logo.jpeg" alt="Trinity" style={{ height: 16, margin: "0 auto 2px", display: "block" }} /><p>Trinityautomation.com • Sales@trinityautomation.com • (800) 762-6864</p><p>NorCal - 431 Nelo Street Santa Clara, CA 95054 • SoCal - 4582 Brickell Privado Ontario, CA 91761</p></div>; }
+function Ft() { return <div className="ft-inline"><img src="/trinity-logo.jpeg" alt="Trinity" style={{ height: 16, margin: "0 auto 2px", display: "block" }} /><p>Trinityautomation.com • Sales@trinityautomation.com • (800) 762-6864</p><p>NorCal - 431 Nelo Street Santa Clara, CA 95054 • SoCal - 4582 Brickell Privado Ontario, CA 91761</p></div>; }
 
 function TC({ t, items }: { t: string; items: string[] }) { return <div style={{ marginBottom: 6 }}><div className="tt">{t}</div>{items.map((item, i) => <p key={i} className="ti">{item}</p>)}</div>; }
 
