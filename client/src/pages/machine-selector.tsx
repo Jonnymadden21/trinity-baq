@@ -14,8 +14,7 @@ export default function MachineSelector() {
     queryKey: ["/api/machines"],
   });
 
-  const axMachines = machines?.filter((m) => m.series === "AX") || [];
-  const aiMachines = machines?.filter((m) => m.series === "Ai") || [];
+  const allMachines = machines ? [...machines.filter(m => m.series === "Ai"), ...machines.filter(m => m.series === "AX")] : [];
 
   return (
     <div className="min-h-screen bg-background" data-testid="machine-selector-page">
@@ -71,45 +70,12 @@ export default function MachineSelector() {
         </div>
       </section>
 
-      {/* Ai Series */}
-      <section className="mx-auto max-w-7xl px-6 py-12">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-xl font-bold text-foreground">Ai Series</h2>
-            <Badge variant="outline" className="text-xs font-medium border-primary/30 text-primary">
-              AI-Powered
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground max-w-xl">
-            AI-driven machine tending with Intrinsic Intelligence. No robot programming required.
-            Automatic gripper and jaw changeovers for high-mix automation.
-          </p>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Skeleton className="h-64 rounded-xl" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {aiMachines.map((machine) => (
-              <MachineCard key={machine.id} machine={machine} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* AX Series */}
+      {/* All Machines */}
       <section className="mx-auto max-w-7xl px-6 py-12 pb-20">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-xl font-bold text-foreground">AX Series</h2>
-            <Badge variant="outline" className="text-xs font-medium border-primary/30 text-primary">
-              Pallet Automation
-            </Badge>
-          </div>
+          <h2 className="text-xl font-bold text-foreground">Trinity Automation Systems</h2>
           <p className="text-sm text-muted-foreground max-w-xl">
-            Automated pallet management systems for vertical machining centers. Store workholding setups, automate changeovers, and run unattended production.
+            Select a system to configure and build your quote.
           </p>
         </div>
 
@@ -121,7 +87,7 @@ export default function MachineSelector() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {axMachines.map((machine) => (
+            {allMachines.map((machine) => (
               <MachineCard key={machine.id} machine={machine} />
             ))}
           </div>

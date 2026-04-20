@@ -82,8 +82,7 @@ const BROCHURE_MAP: Record<string, string[]> = {
   "ax4-12-hd": ["ax4-spec.pdf"],
   "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
   "ax5-20-hd": ["ax5-hd-brochure.pdf"],
-  "ai-part-loader": ["ai-part-loader.pdf"],
-};
+  };
 
 /* Per-machine branding — series logo, hero, tagline */
 function brandForSlug(slug: string, machineName: string) {
