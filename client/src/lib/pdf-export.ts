@@ -1,383 +1,425 @@
 import type { Quote } from "@shared/schema";
 
-type SelectedOption = {
-  id: number;
-  name: string;
-  partNumber: string | null;
-  price: number;
-  isStandard: boolean;
-  category: string;
+type SelectedOption = { id: number; name: string; partNumber: string | null; price: number; isStandard: boolean; category: string };
+type FinancingParams = { downPaymentPct: number; termMonths: number; interestRate: number; downPayment: number; financedAmount: number; monthlyPayment: number; totalCost: number } | null;
+type RoiParams = { shopRate: number; hrsPerShift: number; operatorWage: number; workingDays: number; mannedShifts: number; unmannedShifts: number; capacityMult: number; totalGainRev: number; mannedGainRev: number; unmannedGainRev: number; mannedGainHrs: number; unmannedGainHrs: number; laborSaving: number; netBenefit: number; paybackMonths: number; year1ROI: number; year3ROI: number; year5ROI: number; taxSavings: number; effectiveCost: number } | null;
+
+export type ExportQuoteArgs = { quote: Quote; options: SelectedOption[]; financing: FinancingParams; roi: RoiParams };
+
+const C = {
+  gold:    [212, 168, 67]  as [number, number, number],
+  ink:     [26, 28, 32]    as [number, number, number],
+  dark:    [45, 45, 45]    as [number, number, number],
+  muted:   [120, 120, 120] as [number, number, number],
+  light:   [245, 245, 245] as [number, number, number],
+  white:   [255, 255, 255] as [number, number, number],
+  green:   [16, 160, 110]  as [number, number, number],
+  hdrBg:   [75, 75, 75]    as [number, number, number],
+  rowAlt:  [250, 250, 250] as [number, number, number],
 };
 
-type FinancingParams = {
-  downPaymentPct: number;
-  termMonths: number;
-  interestRate: number;
-  downPayment: number;
-  financedAmount: number;
-  monthlyPayment: number;
-  totalCost: number;
-} | null;
-
-type RoiParams = {
-  shopRate: number;
-  hrsPerShift: number;
-  operatorWage: number;
-  workingDays: number;
-  mannedShifts: number;
-  unmannedShifts: number;
-  capacityMult: number;
-  totalGainRev: number;
-  mannedGainRev: number;
-  unmannedGainRev: number;
-  mannedGainHrs: number;
-  unmannedGainHrs: number;
-  laborSaving: number;
-  netBenefit: number;
-  paybackMonths: number;
-  year1ROI: number;
-  year3ROI: number;
-  year5ROI: number;
-  taxSavings: number;
-  effectiveCost: number;
-} | null;
-
-export type ExportQuoteArgs = {
-  quote: Quote;
-  options: SelectedOption[];
-  financing: FinancingParams;
-  roi: RoiParams;
-};
-
-const BRAND = {
-  primary: [14, 116, 144] as [number, number, number],
-  ink:     [22, 28, 38]   as [number, number, number],
-  muted:   [110, 118, 129] as [number, number, number],
-  line:    [225, 228, 232] as [number, number, number],
-  accent:  [16, 185, 129]  as [number, number, number],
-  surface: [248, 250, 252] as [number, number, number],
-  red:     [220, 80, 80]   as [number, number, number],
-};
-
-const USD = (n: number, frac = 0) =>
-  "$" + n.toLocaleString("en-US", { minimumFractionDigits: frac, maximumFractionDigits: frac });
+const USD = (n: number, frac = 0) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: frac, maximumFractionDigits: frac });
 
 export async function exportQuotePdf({ quote, options, financing, roi }: ExportQuoteArgs) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const M = 50;
+  let y = 0;
 
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const M = 48;
-  let y = M;
+  const txt = (s: string, x: number, yy: number, o: { sz?: number; w?: "normal" | "bold"; c?: [number, number, number]; a?: "left" | "right" | "center" } = {}) => {
+    doc.setFont("helvetica", o.w ?? "normal"); doc.setFontSize(o.sz ?? 10);
+    doc.setTextColor(o.c?.[0] ?? 26, o.c?.[1] ?? 28, o.c?.[2] ?? 32);
+    doc.text(s, x, yy, { align: o.a });
+  };
+  const fill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
+  const stroke = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
+  const hr = (yy: number) => { stroke(C.light); doc.setLineWidth(0.5); doc.line(M, yy, W - M, yy); };
+  const cw = W - M * 2;
 
-  const setColor = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
-  const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
-  const setStroke = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
-
-  const text = (
-    s: string, x: number, yy: number,
-    opts: { size?: number; weight?: "normal" | "bold"; color?: [number, number, number]; align?: "left" | "right" | "center" } = {}
-  ) => {
-    doc.setFont("helvetica", opts.weight ?? "normal");
-    doc.setFontSize(opts.size ?? 10);
-    setColor(opts.color ?? BRAND.ink);
-    doc.text(s, x, yy, { align: opts.align });
+  const pageFooter = () => {
+    const fy = H - 36;
+    fill(C.gold); doc.triangle(W / 2 - 12, fy - 18, W / 2, fy - 30, W / 2 + 12, fy - 18, "F");
+    txt("Trinity", W / 2, fy - 8, { sz: 10, w: "bold", c: C.dark, a: "center" });
+    txt("Trinityautomation.com  •  Sales@trinityautomation.com  •  (800) 762-6864", W / 2, fy + 6, { sz: 7, c: C.muted, a: "center" });
+    txt("NorCal - 431 Nelo Street Santa Clara, CA 95054  •  SoCal - 4582 Brickell Privado Ontario, CA 91761", W / 2, fy + 14, { sz: 7, c: C.muted, a: "center" });
+    const pn = doc.getCurrentPageInfo().pageNumber;
+    const pt = doc.getNumberOfPages();
+    txt(`Page ${pn} | ${pt}`, W - M, fy + 14, { sz: 7, c: C.muted, a: "right" });
   };
 
-  const hr = (yy: number) => {
-    setStroke(BRAND.line); doc.setLineWidth(0.5); doc.line(M, yy, pageW - M, yy);
+  const ensureSpace = (need: number) => {
+    if (y + need > H - 60) { pageFooter(); doc.addPage(); y = M; pageHeader(); }
   };
 
-  const ensureSpace = (needed: number) => {
-    if (y + needed > pageH - M - 40) { footer(); doc.addPage(); y = M; header(false); }
+  const pageHeader = () => {
+    fill(C.gold); doc.triangle(M, 28, M + 10, 14, M + 20, 28, "F");
+    txt("Trinity", M + 24, 24, { sz: 11, w: "bold", c: C.dark });
+    txt("Automated Pallet Systems", M + 24, 34, { sz: 7, c: C.muted });
+    const series = quote.machineName.startsWith("Ai") ? "Ai" : "AX";
+    txt(`${series} Automation Sales Quotation`, W - M, 18, { sz: 11, w: "bold", c: C.dark, a: "right" });
+    txt(`Quotation: ${quote.quoteNumber}`, W - M, 30, { sz: 9, c: C.muted, a: "right" });
+    txt(`Date: ${new Date(quote.createdAt).toLocaleDateString()}`, W - M, 40, { sz: 9, c: C.muted, a: "right" });
+    hr(46);
+    y = 58;
   };
 
-  const header = (first: boolean) => {
-    setFill(BRAND.primary);
-    doc.rect(0, 0, pageW, 6, "F");
+  // ============ PAGE 1: COVER ============
+  fill(C.gold); doc.triangle(M, 38, M + 16, 14, M + 32, 38, "F");
+  txt("Trinity", M + 38, 30, { sz: 16, w: "bold", c: C.dark });
+  txt("Automated Machine Tending", M, 48, { sz: 8, w: "bold", c: C.dark });
+  const series = quote.machineName.startsWith("Ai") ? "Ai" : "AX";
+  txt(`${series} Automation Sales Quotation`, W - M, 22, { sz: 14, w: "bold", c: C.dark, a: "right" });
+  txt(`Quotation: ${quote.quoteNumber}`, W - M, 36, { sz: 10, c: C.muted, a: "right" });
+  txt(`Date: ${new Date(quote.createdAt).toLocaleDateString()}`, W - M, 48, { sz: 10, c: C.muted, a: "right" });
 
-    if (first) {
-      text("TRINITY", M, M + 12, { size: 11, weight: "bold" });
-      text("AUTOMATION", M, M + 24, { size: 9, weight: "bold", color: BRAND.primary });
-      text("SYSTEM QUOTATION", pageW - M, M + 10, { size: 8, weight: "bold", color: BRAND.muted, align: "right" });
-      text(`#${quote.quoteNumber}`, pageW - M, M + 24, { size: 14, weight: "bold", align: "right" });
-      text(
-        new Date(quote.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-        pageW - M, M + 38, { size: 9, color: BRAND.muted, align: "right" }
-      );
-      y = M + 54; hr(y); y += 20;
-    } else {
-      text("TRINITY AUTOMATION", M, M + 14, { size: 8, weight: "bold", color: BRAND.muted });
-      text(`Quote #${quote.quoteNumber}`, pageW - M, M + 14, { size: 8, color: BRAND.muted, align: "right" });
-      y = M + 28;
-    }
-  };
+  // Machine title area
+  y = 100;
+  fill(C.light); doc.roundedRect(M, y, cw, 100, 6, 6, "F");
+  txt(`Trinity ${series} Series`, M + 20, y + 30, { sz: 22, w: "bold", c: C.dark });
+  txt(quote.machineName, M + 20, y + 55, { sz: 16, w: "bold", c: C.gold });
+  txt("Automated CNC Production Made Easy", M + 20, y + 75, { sz: 10, c: C.muted });
 
-  const footer = () => {
-    const yy = pageH - M + 16;
-    hr(yy - 10);
-    text("Trinity Robotics Automation, LLC · Ontario, CA · (800) 762-6864 · sales@trinityautomation.com", M, yy, { size: 7, color: BRAND.muted });
-    const pageCount = doc.getNumberOfPages();
-    const currentPage = doc.getCurrentPageInfo().pageNumber;
-    text(`Page ${currentPage} of ${pageCount}`, pageW - M, yy, { size: 7, color: BRAND.muted, align: "right" });
-  };
+  // Prepared For / Trinity Contact
+  y = 240;
+  hr(y); y += 20;
+  const halfW = cw / 2;
 
-  // =============== PAGE 1 — QUOTE ===============
-  header(true);
+  txt("Prepared For:", M, y, { sz: 10, c: C.muted });
+  y += 16;
+  txt(quote.customerName, M + 10, y, { sz: 10, w: "bold" });
+  if (quote.customerPhone) { y += 13; txt(quote.customerPhone, M + 10, y, { sz: 9, c: C.muted }); }
+  txt(quote.customerEmail, M + 10, y + 13, { sz: 9, c: C.muted });
+  if (quote.customerCompany) { txt(quote.customerCompany, M + 10, y + 26, { sz: 9, c: C.muted }); }
 
-  // Customer info
-  text("PREPARED FOR", M, y, { size: 8, weight: "bold", color: BRAND.muted });
-  y += 14;
-  text(quote.customerName, M, y, { size: 11, weight: "bold" });
-  y += 13;
-  text(quote.customerEmail, M, y, { size: 9, color: BRAND.muted });
-  if (quote.customerCompany) { y += 12; text(quote.customerCompany, M, y, { size: 9, color: BRAND.muted }); }
-  if (quote.customerPhone) { y += 12; text(quote.customerPhone, M, y, { size: 9, color: BRAND.muted }); }
+  const contactY = 256;
+  txt("Trinity Contact:", M + halfW, contactY, { sz: 10, c: C.muted });
+  txt("Trinity Automation", M + halfW + 10, contactY + 16, { sz: 10, w: "bold" });
+  txt("(800) 762-6864", M + halfW + 10, contactY + 29, { sz: 9, c: C.muted });
+  txt("sales@trinityautomation.com", M + halfW + 10, contactY + 42, { sz: 9, c: C.muted });
+  txt("4582 Brickell Privado", M + halfW + 10, contactY + 55, { sz: 9, c: C.muted });
+  txt("Ontario, CA 91761", M + halfW + 10, contactY + 68, { sz: 9, c: C.muted });
 
-  // Total price box (right)
-  const colW = (pageW - M * 2 - 20) / 2;
-  const boxY = M + 66;
-  setFill(BRAND.surface);
-  doc.roundedRect(M + colW + 20, boxY, colW, 60, 6, 6, "F");
-  text("TOTAL SYSTEM PRICE", M + colW + 32, boxY + 16, { size: 8, weight: "bold", color: BRAND.muted });
-  text(USD(quote.totalPrice, 2), M + colW + 32, boxY + 40, { size: 22, weight: "bold", color: BRAND.primary });
-  if (financing) {
-    text(`Est. ${USD(Math.round(financing.monthlyPayment))}/mo · ${financing.termMonths} mo @ ${financing.interestRate}% APR`, M + colW + 32, boxY + 54, { size: 8, color: BRAND.muted });
-  }
-  y = boxY + 76;
+  pageFooter();
 
-  // System configuration
-  text("SYSTEM CONFIGURATION", M, y, { size: 8, weight: "bold", color: BRAND.muted });
-  y += 14;
-  setFill(BRAND.surface);
-  doc.roundedRect(M, y, pageW - M * 2, 32, 4, 4, "F");
-  text(quote.machineName, M + 12, y + 14, { size: 12, weight: "bold" });
-  text("Base System", M + 12, y + 26, { size: 8, color: BRAND.muted });
-  text(USD(quote.basePrice, 2), pageW - M - 12, y + 20, { size: 12, weight: "bold", align: "right" });
-  y += 44;
+  // ============ PAGE 2: CONFIGURATION + STANDARD PRODUCTS ============
+  doc.addPage(); y = M; pageHeader();
 
-  // Selected options table
-  const grouped = new Map<string, SelectedOption[]>();
-  const standardGrouped = new Map<string, SelectedOption[]>();
-  for (const o of options) {
-    const target = o.isStandard ? standardGrouped : (o.price > 0 ? grouped : null);
-    if (!target) continue;
-    const bucket = target.get(o.category) ?? [];
-    bucket.push(o);
-    target.set(o.category, bucket);
-  }
+  txt("Configuration Details", M, y, { sz: 14, w: "bold" }); y += 4;
+  fill(C.gold); doc.rect(M, y, 60, 2, "F"); y += 14;
 
-  if (grouped.size > 0) {
-    ensureSpace(30);
-    text("SELECTED OPTIONS", M, y, { size: 8, weight: "bold", color: BRAND.muted });
-    y += 14;
-    for (const [category, opts] of grouped) {
-      ensureSpace(20 + opts.length * 16);
-      text(category.toUpperCase(), M, y, { size: 7, weight: "bold", color: BRAND.primary });
-      y += 10;
-      for (const o of opts) {
-        ensureSpace(16);
-        const name = o.name.length > 60 ? o.name.slice(0, 57) + "…" : o.name;
-        text(name, M + 8, y, { size: 9 });
-        if (o.partNumber) text(o.partNumber, M + 310, y, { size: 8, color: BRAND.muted });
-        text(USD(o.price), pageW - M, y, { size: 9, weight: "bold", align: "right" });
-        y += 14;
-      }
-      y += 4;
-    }
-  }
+  // 3-column config table
+  const col3W = cw / 3;
+  fill(C.hdrBg);
+  doc.rect(M, y, col3W, 18, "F"); doc.rect(M + col3W, y, col3W, 18, "F"); doc.rect(M + col3W * 2, y, col3W, 18, "F");
+  txt(`${series} Configuration`, M + 8, y + 12, { sz: 8, w: "bold", c: C.white });
+  txt("CNC Machine Configuration", M + col3W + 8, y + 12, { sz: 8, w: "bold", c: C.white });
+  txt("Logistics", M + col3W * 2 + 8, y + 12, { sz: 8, w: "bold", c: C.white });
+  y += 20;
 
-  // Standard features
-  if (standardGrouped.size > 0) {
-    ensureSpace(24);
-    y += 4;
-    text("STANDARD FEATURES INCLUDED", M, y, { size: 8, weight: "bold", color: BRAND.muted });
-    y += 12;
-    for (const [category, opts] of standardGrouped) {
-      ensureSpace(16);
-      const names = opts.map((o) => o.name).join(" · ");
-      const wrapped = doc.splitTextToSize(`${category}: ${names}`, pageW - M * 2);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      setColor(BRAND.muted);
-      doc.text(wrapped, M, y);
-      y += 11 * (Array.isArray(wrapped) ? wrapped.length : 1) + 2;
-    }
-  }
+  stroke([200, 200, 200]); doc.setLineWidth(0.3);
+  doc.rect(M, y, col3W, 80); doc.rect(M + col3W, y, col3W, 80); doc.rect(M + col3W * 2, y, col3W, 80);
 
-  // Totals
-  y += 8;
-  ensureSpace(80);
-  hr(y); y += 14;
-  const rc = pageW - M;
-  const lc = pageW - M - 160;
-  text("Base System", lc, y, { size: 10, color: BRAND.muted });
-  text(USD(quote.basePrice, 2), rc, y, { size: 10, weight: "bold", align: "right" }); y += 16;
-  if (quote.optionsTotal > 0) {
-    text("Options Total", lc, y, { size: 10, color: BRAND.muted });
-    text(USD(quote.optionsTotal, 2), rc, y, { size: 10, weight: "bold", align: "right" }); y += 16;
-  }
-  text("Tax", lc, y, { size: 10, color: BRAND.muted });
-  text("TBD", rc, y, { size: 10, color: BRAND.muted, align: "right" }); y += 16;
-  text("Freight / Rigging", lc, y, { size: 10, color: BRAND.muted });
-  text("TBD", rc, y, { size: 10, color: BRAND.muted, align: "right" }); y += 10;
-  setStroke(BRAND.ink); doc.setLineWidth(1); doc.line(lc, y, rc, y); y += 16;
-  text("SYSTEM TOTAL", lc, y, { size: 11, weight: "bold" });
-  text(USD(quote.totalPrice, 2), rc, y, { size: 16, weight: "bold", color: BRAND.primary, align: "right" }); y += 24;
-
-  // =============== PAGE 2 — FINANCING + ROI ===============
-  if (financing || roi) {
-    doc.addPage(); y = M; header(false); y += 10;
-
-    if (financing) {
-      text("FINANCING SUMMARY", M, y, { size: 10, weight: "bold" }); y += 18;
-      setFill(BRAND.surface);
-      doc.roundedRect(M, y, pageW - M * 2, 52, 6, 6, "F");
-      text("ESTIMATED MONTHLY PAYMENT", M + 14, y + 14, { size: 8, weight: "bold", color: BRAND.muted });
-      text(`${USD(Math.round(financing.monthlyPayment))}/mo`, M + 14, y + 38, { size: 20, weight: "bold", color: BRAND.primary });
-      y += 66;
-
-      const rows: [string, string][] = [
-        [`Down Payment (${financing.downPaymentPct}%)`, USD(Math.round(financing.downPayment))],
-        ["Financed Amount", USD(Math.round(financing.financedAmount))],
-        ["Term / Rate", `${financing.termMonths} months @ ${financing.interestRate}% APR`],
-        ["Total Cost of Financing", USD(Math.round(financing.totalCost))],
-      ];
-      for (const [l, v] of rows) {
-        text(l, M, y, { size: 10, color: BRAND.muted });
-        text(v, pageW - M, y, { size: 10, weight: "bold", align: "right" }); y += 16;
-      }
-
-      if (roi && roi.netBenefit > 0) {
-        y += 8;
-        setFill(BRAND.surface);
-        doc.roundedRect(M, y, pageW - M * 2, 34, 6, 6, "F");
-        const monthlyBenefit = Math.round(roi.netBenefit / 12);
-        text(`Monthly payment ${USD(Math.round(financing.monthlyPayment))} vs. monthly benefit ${USD(monthlyBenefit)}`, M + 14, y + 14, { size: 9, color: BRAND.muted });
-        if (monthlyBenefit > financing.monthlyPayment) {
-          text("This system pays for itself from day one.", M + 14, y + 26, { size: 9, weight: "bold", color: BRAND.accent });
-        }
-        y += 46;
-      } else {
-        y += 16;
-      }
-    }
-
-    if (roi) {
-      ensureSpace(200);
-      text("RETURN ON INVESTMENT", M, y, { size: 10, weight: "bold" }); y += 18;
-
-      // KPI boxes
-      const kpiW = (pageW - M * 2 - 24) / 4;
-      const kpiH = 50;
-      const kpis: [string, string, [number, number, number]][] = [
-        ["NET ANNUAL BENEFIT", USD(Math.round(roi.netBenefit)), BRAND.accent],
-        ["PAYBACK PERIOD", roi.paybackMonths > 0 && roi.paybackMonths < 120 ? `${roi.paybackMonths.toFixed(1)} mo` : "120+", BRAND.accent],
-        ["YEAR 5 ROI", `${Math.round(roi.year5ROI)}%`, BRAND.accent],
-        ["CAPACITY", `${roi.capacityMult.toFixed(1)}x`, BRAND.primary],
-      ];
-      kpis.forEach(([label, value, color], i) => {
-        const x = M + i * (kpiW + 8);
-        setFill(BRAND.surface);
-        doc.roundedRect(x, y, kpiW, kpiH, 6, 6, "F");
-        text(label, x + 8, y + 14, { size: 6, weight: "bold", color: BRAND.muted });
-        text(value, x + 8, y + 36, { size: 14, weight: "bold", color });
-      });
-      y += kpiH + 16;
-
-      // ROI timeline
-      text("ROI TIMELINE", M, y, { size: 8, weight: "bold", color: BRAND.muted }); y += 14;
-      const roiYears: [string, string][] = [
-        ["Year 1", `${Math.round(roi.year1ROI)}%`],
-        ["Year 3", `${Math.round(roi.year3ROI)}%`],
-        ["Year 5", `${Math.round(roi.year5ROI)}%`],
-      ];
-      const tW = (pageW - M * 2 - 16) / 3;
-      roiYears.forEach(([label, value], i) => {
-        const x = M + i * (tW + 8);
-        setFill(BRAND.surface);
-        doc.roundedRect(x, y, tW, 32, 4, 4, "F");
-        text(label, x + 10, y + 13, { size: 8, color: BRAND.muted });
-        text(value, x + tW - 10, y + 13, { size: 14, weight: "bold", color: BRAND.accent, align: "right" });
-      });
-      y += 44;
-
-      // Annual breakdown
-      text("ANNUAL BENEFIT BREAKDOWN", M, y, { size: 8, weight: "bold", color: BRAND.muted }); y += 14;
-
-      const breakdownRows: [string, string, string, [number, number, number]][] = [
-        ["Manned Shift Improvement", `${roi.mannedGainHrs?.toFixed(1) ?? "—"} hrs/day × $${roi.shopRate} × ${roi.workingDays} days`, USD(Math.round(roi.mannedGainRev ?? 0)), BRAND.ink],
-      ];
-      if (roi.unmannedShifts > 0) {
-        breakdownRows.push(
-          ["Unmanned Shift — NEW Revenue", `${roi.unmannedGainHrs?.toFixed(1) ?? "—"} hrs/day × $${roi.shopRate} × ${roi.workingDays} days`, USD(Math.round(roi.unmannedGainRev ?? 0)), BRAND.ink]
-        );
-      }
-      breakdownRows.push(
-        ["Labor Reallocation Value", `${roi.mannedGainHrs?.toFixed(1) ?? "—"} hrs × $${roi.operatorWage} × ${roi.workingDays} days × 50%`, USD(Math.round(roi.laborSaving)), BRAND.ink]
-      );
-
-      for (const [label, detail, value, color] of breakdownRows) {
-        ensureSpace(28);
-        text(label, M, y, { size: 9, color });
-        text(value, pageW - M, y, { size: 9, weight: "bold", color: BRAND.accent, align: "right" });
-        y += 11;
-        text(detail, M, y, { size: 7, color: BRAND.muted });
-        y += 14;
-      }
-
-      // Net total
-      y += 2;
-      setStroke(BRAND.ink); doc.setLineWidth(0.75); doc.line(M, y, pageW - M, y); y += 14;
-      text("NET ANNUAL BENEFIT", M, y, { size: 11, weight: "bold" });
-      text(USD(Math.round(roi.netBenefit)), pageW - M, y, { size: 16, weight: "bold", color: BRAND.accent, align: "right" });
-      y += 24;
-
-      // Section 179
-      ensureSpace(60);
-      setFill(BRAND.surface);
-      doc.roundedRect(M, y, pageW - M * 2, 44, 6, 6, "F");
-      text("SECTION 179 TAX BENEFIT", M + 14, y + 14, { size: 8, weight: "bold", color: BRAND.muted });
-      text(`Tax Savings: ${USD(Math.round(roi.taxSavings))}  ·  Effective Cost: ${USD(Math.round(roi.effectiveCost))}  ·  Adjusted Payback: ${roi.paybackMonths > 0 && roi.paybackMonths < 120 ? (roi.paybackMonths * 0.79).toFixed(1) + " mo" : "—"}`, M + 14, y + 32, { size: 9, color: BRAND.ink });
-      y += 56;
-
-      // Footnote
-      text(`Based on ${roi.mannedShifts} manned + ${roi.unmannedShifts} unmanned shifts · ${roi.hrsPerShift} hrs/shift · $${roi.shopRate}/hr shop rate · ${roi.workingDays} working days/year`, M, y, { size: 7, color: BRAND.muted });
-      y += 20;
-    }
-  }
-
-  // Terms & Details
-  ensureSpace(100);
-  y += 10;
-  text("TERMS & DETAILS", M, y, { size: 10, weight: "bold" }); y += 16;
-  const details: [string, string][] = [
-    ["Lead Time", "8 Weeks from signed PO"],
-    ["FOB", "Ontario, CA 91761"],
-    ["Warranty", "1 Year Standard · Extended options available"],
-    ["Quote Valid", "60 Days from issue date"],
-    ["Payment Terms", "Net 30 · Financing available"],
+  const configLeft = [
+    `${series} – ${quote.machineName}`,
+    `Voltage – 220 VAC, 3 Phase, 40 AMPS`,
   ];
-  for (const [l, v] of details) {
-    text(l, M, y, { size: 9, color: BRAND.muted });
-    text(v, M + 140, y, { size: 9, weight: "bold" }); y += 14;
+  const configMid = [
+    "CNC Machine Details",
+    "Manufacturer – TBD",
+    "Model – TBD",
+    "Automation Entry – TBD",
+  ];
+  const configRight = [
+    "Lead Time – 8 weeks",
+    "FOB – Shipping Point",
+    "Shipping – Customer Supplied",
+    "Payment Terms:",
+    "  20% Down",
+    "  70% Shipment",
+    "  10% Production",
+  ];
+
+  let cy = y + 12;
+  for (const line of configLeft) { txt(`• ${line}`, M + 6, cy, { sz: 7, c: C.dark }); cy += 10; }
+  cy = y + 12;
+  for (const line of configMid) { txt(`• ${line}`, M + col3W + 6, cy, { sz: 7, c: C.dark }); cy += 10; }
+  cy = y + 12;
+  for (const line of configRight) { txt(`• ${line}`, M + col3W * 2 + 6, cy, { sz: 7, c: C.dark }); cy += 10; }
+  y += 90;
+
+  // Standard Products & Services Table
+  y += 10;
+  txt("Standard Products & Services", M, y, { sz: 14, w: "bold" }); y += 4;
+  fill(C.gold); doc.rect(M, y, 60, 2, "F"); y += 14;
+
+  // Table header
+  const cols = [M, M + 80, M + 370, M + 430, M + 470];
+  fill(C.hdrBg);
+  doc.rect(M, y, cw, 18, "F");
+  txt("Part Number", cols[0] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+  txt("Description", cols[1] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+  txt("Unit Price", cols[2] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+  txt("Qty.", cols[3] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+  txt("Sub-Total", cols[4] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+  y += 20;
+
+  const standardOpts = options.filter(o => o.isStandard);
+  const addedOpts = options.filter(o => !o.isStandard && o.price > 0);
+
+  // Standard items
+  for (let i = 0; i < standardOpts.length; i++) {
+    const o = standardOpts[i];
+    ensureSpace(20);
+    if (i % 2 === 1) { fill(C.rowAlt); doc.rect(M, y - 10, cw, 16, "F"); }
+    const name = o.name.length > 45 ? o.name.slice(0, 42) + "…" : o.name;
+    txt(o.partNumber || "—", cols[0] + 6, y, { sz: 8, c: C.dark });
+    txt(name, cols[1] + 6, y, { sz: 8 });
+    txt("Included", cols[2] + 6, y, { sz: 8, c: C.muted });
+    txt("1", cols[3] + 6, y, { sz: 8 });
+    txt("Included", cols[4] + 6, y, { sz: 8, c: C.muted });
+    y += 16;
   }
 
-  // Stamp footers
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) { doc.setPage(i); footer(); }
+  // Added options
+  if (addedOpts.length > 0) {
+    y += 10;
+    ensureSpace(40);
+    txt("Selected Options", M, y, { sz: 12, w: "bold" }); y += 4;
+    fill(C.gold); doc.rect(M, y, 50, 2, "F"); y += 14;
 
-  // --- Merge brochures ---
+    fill(C.hdrBg);
+    doc.rect(M, y, cw, 18, "F");
+    txt("Part Number", cols[0] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+    txt("Description", cols[1] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+    txt("Unit Price", cols[2] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+    txt("Qty.", cols[3] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+    txt("Sub-Total", cols[4] + 6, y + 12, { sz: 8, w: "bold", c: C.white });
+    y += 20;
+
+    for (let i = 0; i < addedOpts.length; i++) {
+      const o = addedOpts[i];
+      ensureSpace(20);
+      if (i % 2 === 1) { fill(C.rowAlt); doc.rect(M, y - 10, cw, 16, "F"); }
+      const name = o.name.length > 45 ? o.name.slice(0, 42) + "…" : o.name;
+      txt(o.partNumber || "—", cols[0] + 6, y, { sz: 8, c: C.dark });
+      txt(name, cols[1] + 6, y, { sz: 8 });
+      txt(USD(o.price, 2), cols[2] + 6, y, { sz: 8, w: "bold" });
+      txt("1", cols[3] + 6, y, { sz: 8 });
+      txt(USD(o.price, 2), cols[4] + 6, y, { sz: 8, w: "bold" });
+      y += 16;
+    }
+  }
+
+  // Pricing summary
+  y += 16; ensureSpace(100);
+  hr(y); y += 16;
+  const priceX = W - M - 120;
+  txt(`${series} System Price:`, priceX, y, { sz: 10, a: "right" });
+  txt(USD(quote.totalPrice, 2), W - M, y, { sz: 10, w: "bold", a: "right" }); y += 14;
+  txt("Tax (%):", priceX, y, { sz: 10, c: C.muted, a: "right" });
+  txt("TBD", W - M, y, { sz: 10, c: C.muted, a: "right" }); y += 14;
+  txt(`Equipment Total`, priceX, y, { sz: 10, a: "right" });
+  txt(USD(quote.totalPrice, 2), W - M, y, { sz: 10, w: "bold", a: "right" }); y += 14;
+  txt("Approx. Freight:", priceX, y, { sz: 10, c: C.muted, a: "right" });
+  txt("TBD", W - M, y, { sz: 10, c: C.muted, a: "right" }); y += 14;
+  txt("Approx. Rigging:", priceX, y, { sz: 10, c: C.muted, a: "right" });
+  txt("TBD", W - M, y, { sz: 10, c: C.muted, a: "right" }); y += 6;
+  stroke(C.dark); doc.setLineWidth(1); doc.line(priceX - 40, y, W - M, y); y += 14;
+  txt("Total:", priceX, y, { sz: 12, w: "bold", a: "right" });
+  txt(USD(quote.totalPrice, 2), W - M, y, { sz: 12, w: "bold", a: "right" });
+
+  pageFooter();
+
+  // ============ PAGE: FINANCING ============
+  if (financing) {
+    doc.addPage(); y = M; pageHeader();
+    txt("Financing Summary", M, y, { sz: 14, w: "bold" }); y += 4;
+    fill(C.gold); doc.rect(M, y, 60, 2, "F"); y += 20;
+
+    fill(C.light); doc.roundedRect(M, y, cw, 56, 6, 6, "F");
+    txt("ESTIMATED MONTHLY PAYMENT", M + 16, y + 16, { sz: 8, w: "bold", c: C.muted });
+    txt(`${USD(Math.round(financing.monthlyPayment))}/mo`, M + 16, y + 40, { sz: 22, w: "bold", c: C.gold });
+    y += 70;
+
+    const fRows: [string, string][] = [
+      [`Down Payment (${financing.downPaymentPct}%)`, USD(Math.round(financing.downPayment))],
+      ["Financed Amount", USD(Math.round(financing.financedAmount))],
+      ["Term / Rate", `${financing.termMonths} months @ ${financing.interestRate}% APR`],
+      ["Total Cost of Financing", USD(Math.round(financing.totalCost))],
+    ];
+    for (const [l, v] of fRows) {
+      txt(l, M, y, { sz: 10, c: C.muted }); txt(v, W - M, y, { sz: 10, w: "bold", a: "right" }); y += 18;
+    }
+
+    if (roi && roi.netBenefit > 0) {
+      y += 10;
+      fill(C.light); doc.roundedRect(M, y, cw, 36, 6, 6, "F");
+      const mb = Math.round(roi.netBenefit / 12);
+      txt(`Monthly cost ${USD(Math.round(financing.monthlyPayment))} vs. monthly benefit ${USD(mb)}`, M + 16, y + 14, { sz: 9, c: C.muted });
+      if (mb > financing.monthlyPayment) {
+        txt("This system pays for itself from day one.", M + 16, y + 26, { sz: 9, w: "bold", c: C.green });
+      }
+      y += 48;
+    }
+    pageFooter();
+  }
+
+  // ============ PAGE: ROI ============
+  if (roi) {
+    doc.addPage(); y = M; pageHeader();
+    txt("Return on Investment", M, y, { sz: 14, w: "bold" }); y += 4;
+    fill(C.gold); doc.rect(M, y, 60, 2, "F"); y += 20;
+
+    // KPI boxes
+    const kW = (cw - 24) / 4;
+    const kpis: [string, string][] = [
+      ["NET ANNUAL BENEFIT", USD(Math.round(roi.netBenefit))],
+      ["PAYBACK PERIOD", roi.paybackMonths > 0 && roi.paybackMonths < 120 ? `${roi.paybackMonths.toFixed(1)} mo` : "120+"],
+      ["YEAR 5 ROI", `${Math.round(roi.year5ROI)}%`],
+      ["CAPACITY", `${roi.capacityMult.toFixed(1)}x`],
+    ];
+    kpis.forEach(([label, value], i) => {
+      const x = M + i * (kW + 8);
+      fill(C.light); doc.roundedRect(x, y, kW, 50, 4, 4, "F");
+      txt(label, x + 8, y + 14, { sz: 6, w: "bold", c: C.muted });
+      txt(value, x + 8, y + 36, { sz: 14, w: "bold", c: i < 3 ? C.green : C.dark });
+    });
+    y += 62;
+
+    // ROI timeline
+    txt("ROI TIMELINE", M, y, { sz: 8, w: "bold", c: C.muted }); y += 14;
+    const tW = (cw - 16) / 3;
+    [["Year 1", roi.year1ROI], ["Year 3", roi.year3ROI], ["Year 5", roi.year5ROI]].forEach(([label, val], i) => {
+      const x = M + i * (tW + 8);
+      fill(C.light); doc.roundedRect(x, y, tW, 28, 4, 4, "F");
+      txt(String(label), x + 10, y + 18, { sz: 9, c: C.muted });
+      txt(`${Math.round(val as number)}%`, x + tW - 10, y + 18, { sz: 14, w: "bold", c: C.green, a: "right" });
+    });
+    y += 40;
+
+    // Annual breakdown
+    txt("ANNUAL BENEFIT BREAKDOWN", M, y, { sz: 8, w: "bold", c: C.muted }); y += 14;
+
+    const bRows: [string, string, string][] = [
+      ["Manned Shift Improvement", `${roi.mannedGainHrs?.toFixed(1) ?? "—"} hrs/day × $${roi.shopRate} × ${roi.workingDays} days`, USD(Math.round(roi.mannedGainRev ?? 0))],
+    ];
+    if (roi.unmannedShifts > 0) {
+      bRows.push(["Unmanned Shift — NEW Revenue", `${roi.unmannedGainHrs?.toFixed(1) ?? "—"} hrs/day × $${roi.shopRate} × ${roi.workingDays} days`, USD(Math.round(roi.unmannedGainRev ?? 0))]);
+    }
+    bRows.push(["Labor Reallocation Value", `${roi.mannedGainHrs?.toFixed(1) ?? "—"} hrs × $${roi.operatorWage} × ${roi.workingDays} days × 50%`, USD(Math.round(roi.laborSaving))]);
+
+    for (const [label, detail, value] of bRows) {
+      ensureSpace(26);
+      txt(label, M, y, { sz: 9 }); txt(value, W - M, y, { sz: 9, w: "bold", c: C.green, a: "right" }); y += 10;
+      txt(detail, M, y, { sz: 7, c: C.muted }); y += 14;
+    }
+
+    y += 2; stroke(C.dark); doc.setLineWidth(0.75); doc.line(M, y, W - M, y); y += 14;
+    txt("NET ANNUAL BENEFIT", M, y, { sz: 11, w: "bold" });
+    txt(USD(Math.round(roi.netBenefit)), W - M, y, { sz: 16, w: "bold", c: C.green, a: "right" }); y += 24;
+
+    // Section 179
+    fill(C.light); doc.roundedRect(M, y, cw, 40, 6, 6, "F");
+    txt("SECTION 179 TAX BENEFIT", M + 14, y + 14, { sz: 8, w: "bold", c: C.muted });
+    txt(`Tax Savings: ${USD(Math.round(roi.taxSavings))}  ·  Effective Cost: ${USD(Math.round(roi.effectiveCost))}  ·  Adjusted Payback: ${roi.paybackMonths > 0 && roi.paybackMonths < 120 ? (roi.paybackMonths * 0.79).toFixed(1) + " mo" : "—"}`, M + 14, y + 30, { sz: 9 });
+    y += 52;
+
+    txt(`Based on ${roi.mannedShifts} manned + ${roi.unmannedShifts} unmanned shifts · ${roi.hrsPerShift} hrs/shift · $${roi.shopRate}/hr shop rate · ${roi.workingDays} working days/year`, M, y, { sz: 7, c: C.muted });
+    pageFooter();
+  }
+
+  // ============ PAGE: TERMS & CONDITIONS ============
+  doc.addPage(); y = M; pageHeader();
+
+  const section = (title: string) => {
+    ensureSpace(20); txt(title, M, y, { sz: 10, w: "bold" }); y += 2;
+    stroke(C.dark); doc.setLineWidth(0.5); doc.line(M, y, M + 120, y); y += 10;
+  };
+
+  const bullet = (s: string) => {
+    ensureSpace(24);
+    const wrapped = doc.splitTextToSize(s, cw - 20);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(45, 45, 45);
+    doc.text(wrapped, M + 16, y);
+    y += 10 * (Array.isArray(wrapped) ? wrapped.length : 1) + 2;
+  };
+
+  section("General Assumptions");
+  bullet("(1) Trinity will require Client to provide utility connections (including Electricity and Clean Dry Shop Air) to specified locations.");
+  bullet("(2) Trinity is not responsible for any local permits. All city, Fire, Environmental, Seismic, etc. permits are the sole responsibility of the client.");
+  bullet("(3) Trinity is not responsible for any alterations needed to the building for installation of this system.");
+  bullet("(4) Trinity is not responsible for any Structural Engineering Calculations or Services.");
+  bullet("(5) Installation hours are budgeted to take place during normal business hours 8:00 AM – 5:00 PM.");
+  bullet("(6) Client will provide and ensure level flooring for equipment mounting.");
+  bullet("(7) Client to provide Seismic Engineering & Title 24 calculations, if required.");
+
+  section("Warranty Information");
+  bullet("Trinity Robotics Automation, LLC. warrants the purchased materials and workmanship provided by Trinity to be free of defects for the period of one (1) year from the date in which SAT run-off is completed and signed off by the client or agreed upon production runs begin (whichever event happens first).");
+
+  section("Lead Time");
+  bullet("Delivery and completion of the equipment is based upon receipt and acceptance of Client purchase order, down payment, and contractual signature at Trinity's facility in Ontario, California. Lead times can shift during the project execution due to unaccounted-for events.");
+
+  section("Payment Terms");
+  bullet("20% - Down Payment · Due upon invoice");
+  bullet("70% - Shipment of Equipment · Net 10");
+  bullet("10% - Production · Net 30");
+
+  section("Tax Information");
+  bullet("(1) All purchase orders made to Trinity Robotics Automation should state whether they are taxable or non-taxable.");
+  bullet("(2) If purchases are tax exempt, sales tax will be removed from the Sales Order Total.");
+  bullet("(3) Tax exempt purchases will require proof of certification to Trinity Office Management.");
+
+  section("Shipping / Freight / Rigging");
+  bullet("(1) All shipment, freight, and rigging costs are the responsibility of the client.");
+
+  section("Contract Terms");
+  bullet("(1) Trinity Robotics Automation, LLC. retains a purchase money security interest in the goods that are subject to this contract to secure payment by customer.");
+  bullet("(2) Payment in full on the balance of this Contract must be made upon terms noted on the SO.");
+  bullet("(3) Late payments are subject to a financing charge of 1.5 percent per month on the unpaid balance.");
+  bullet("(4) Financing is the responsibility of Customer.");
+
+  pageFooter();
+
+  // ============ SIGNATURE PAGE ============
+  doc.addPage(); y = M; pageHeader();
+  y += 20;
+  txt("No contract shall result from this order until purchaser's offer is accepted by the General Manager", W / 2, y, { sz: 8, c: C.muted, a: "center" }); y += 12;
+  txt("or Trinity Robotics Automation, LLC.", W / 2, y, { sz: 8, c: C.muted, a: "center" }); y += 6;
+  txt("Price Valid for 60 days from date on Sales order", W / 2, y, { sz: 8, w: "bold", c: C.muted, a: "center" }); y += 30;
+  hr(y); y += 30;
+
+  // Customer signature
+  txt("Date: ___________________", M, y, { sz: 9 });
+  txt("Title: ___________________", M + 170, y, { sz: 9 });
+  txt("Signature: ______________________________", M + 330, y, { sz: 9 });
+  y += 16;
+  txt("I agree to the stated Terms and Conditions", W / 2, y, { sz: 8, c: C.muted, a: "center" });
+  y += 40;
+
+  hr(y); y += 14;
+  txt("Trinity Robotics Automation, LLC. Use Only.", W / 2, y, { sz: 8, c: C.muted, a: "center" }); y += 20;
+  txt("Date: ___________________", M, y, { sz: 9 });
+  txt("Title: ___________________", M + 170, y, { sz: 9 });
+  txt("Signature: ______________________________", M + 330, y, { sz: 9 });
+  y += 16;
+  txt("Trinity Robotics Automation, LLC. Accepts this order.", W / 2, y, { sz: 8, c: C.muted, a: "center" });
+
+  pageFooter();
+
+  // Stamp all footers
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) { doc.setPage(i); pageFooter(); }
+
+  // ============ MERGE BROCHURES ============
   const brochureMap: Record<string, string[]> = {
     "ax1-12": ["ax1-spec.pdf"], "ax1-18": ["ax1-spec.pdf"],
     "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"], "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
     "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"], "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
     "ax4-12": ["ax4-spec.pdf"], "ax4-12-hd": ["ax4-spec.pdf"],
-    "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
-    "ax5-20-hd": ["ax5-hd-brochure.pdf"],
+    "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"], "ax5-20-hd": ["ax5-hd-brochure.pdf"],
   };
-
   const machineSlug = quote.machineName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const brochureFiles = brochureMap[machineSlug];
 
@@ -387,26 +429,22 @@ export async function exportQuotePdf({ quote, options, financing, roi }: ExportQ
       const quoteBytes = doc.output("arraybuffer");
       const merged = await PDFDocument.create();
       const quotePdf = await PDFDocument.load(quoteBytes);
-      const quotePages = await merged.copyPages(quotePdf, quotePdf.getPageIndices());
-      for (const page of quotePages) merged.addPage(page);
+      const qPages = await merged.copyPages(quotePdf, quotePdf.getPageIndices());
+      for (const p of qPages) merged.addPage(p);
       for (const file of brochureFiles) {
-        const bytes = await fetch(`/brochures/${file}`).then((r) => r.arrayBuffer());
-        const brochurePdf = await PDFDocument.load(bytes);
-        const pages = await merged.copyPages(brochurePdf, brochurePdf.getPageIndices());
-        for (const page of pages) merged.addPage(page);
+        const bytes = await fetch(`/brochures/${file}`).then(r => r.arrayBuffer());
+        const bPdf = await PDFDocument.load(bytes);
+        const bPages = await merged.copyPages(bPdf, bPdf.getPageIndices());
+        for (const p of bPages) merged.addPage(p);
       }
       const mergedBytes = await merged.save();
       const blob = new Blob([mergedBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Trinity-Quote-${quote.quoteNumber}.pdf`;
-      a.click();
+      const a = document.createElement("a"); a.href = url;
+      a.download = `Trinity-Quote-${quote.quoteNumber}.pdf`; a.click();
       URL.revokeObjectURL(url);
       return;
-    } catch (err) {
-      console.warn("Brochure merge failed, saving quote only:", err);
-    }
+    } catch (err) { console.warn("Brochure merge failed:", err); }
   }
 
   doc.save(`Trinity-Quote-${quote.quoteNumber}.pdf`);
