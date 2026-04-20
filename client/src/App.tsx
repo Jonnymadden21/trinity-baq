@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import MachineSelector from "@/pages/machine-selector";
 import Configurator from "@/pages/configurator";
 import QuoteSummary from "@/pages/quote-summary";
+import QuotePreview from "@/pages/quote-preview";
 import NotFound from "@/pages/not-found";
 
 function AppRouter() {
@@ -16,6 +17,8 @@ function AppRouter() {
         <Route path="/" component={MachineSelector} />
         <Route path="/configure/:slug" component={Configurator} />
         <Route path="/quote/:quoteNumber" component={QuoteSummary} />
+        <Route path="/preview" component={QuotePreview} />
+        <Route path="/preview/:machine" component={QuotePreview} />
         <Route component={NotFound} />
       </Switch>
     </Router>
