@@ -247,7 +247,7 @@ export default function Configurator() {
         cat.options
           .filter((o) => selectedOptions[o.id])
           .map((o) => ({
-            id: o.id, name: o.name, partNumber: o.partNumber, price: o.price,
+            id: o.id, name: o.name, partNumber: o.partNumber, description: o.description, price: o.price,
             isStandard: o.isStandard, category: cat.name,
           }))
       );
