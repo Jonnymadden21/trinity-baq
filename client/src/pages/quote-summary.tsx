@@ -100,8 +100,8 @@ export default function QuoteSummary() {
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
           <Link href="/"><button className="flex items-center gap-2 text-gray-500 hover:text-gray-900"><ArrowLeft className="h-4 w-4" /><span className="text-sm">Back</span></button></Link>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />Save as PDF</Button>
-            {hasBr && <Button variant="outline" size="sm" onClick={handleBrochures} disabled={exporting}>
+            <Button variant="outline" size="sm" className="text-black" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />Save as PDF</Button>
+            {hasBr && <Button variant="outline" size="sm" className="text-black" onClick={handleBrochures} disabled={exporting}>
               {exporting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating…</> : <><Download className="h-4 w-4 mr-2" />PDF + Brochures</>}
             </Button>}
           </div>
