@@ -21,7 +21,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { TrinityLogo } from "@/components/trinity-logo";
 import { useTheme } from "@/components/theme-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,6 @@ import {
   Package,
   Calculator,
   TrendingUp,
-  Clock,
 } from "lucide-react";
 import type { Machine, Option, OptionCategory } from "@shared/schema";
 
@@ -148,7 +146,7 @@ export default function Configurator() {
   }, [categories]);
 
   // --- Build O(1) lookup indexes once per categories payload ---
-  const { optionById, categoryBySlug } = useMemo(() => {
+  const { optionById } = useMemo(() => {
     const optionMap = new Map<number, Option & { categoryName: string }>();
     const catMap = new Map<string, CategoryWithOptions>();
     if (categories) {
@@ -1488,45 +1486,6 @@ function CategoryNavButton({
   );
 }
 
-function KpiSmall({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="text-xl font-bold text-emerald-500">{value}</p>
-    </div>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-  step = 1,
-  min,
-  max,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  step?: number;
-  min?: number;
-  max?: number;
-}) {
-  return (
-    <div>
-      <Label className="text-xs font-semibold">{label}</Label>
-      <Input
-        type="number"
-        value={value}
-        step={step}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="mt-1.5"
-      />
-    </div>
-  );
-}
 
 function FormField({
   label,

@@ -95,7 +95,7 @@ function brandForSlug(slug: string, machineName: string) {
   let seriesLogo = `${import.meta.env.BASE_URL}proposal-assets/trinity-ax2-logo.png`;
   let hero = `${import.meta.env.BASE_URL}proposal-assets/ax2-hero.png`;
   let tagline = ["Automated Pallet System for", "Small/Medium Vertical Machining Centers"];
-  let quoteTitlePrefix = machineName;
+  const quoteTitlePrefix = machineName;
   let seriesShort = "AX";
 
   if (ai) {
@@ -209,9 +209,6 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
   });
 
   const equipmentTotal = quote.totalPrice;
-  const installOpt = add.find(
-    (o) => /install/i.test(o.name) || /install/i.test(o.partNumber || ""),
-  );
   // System Price = total MINUS installation line (matches reference where "AX System Price" != total if install present)
   const systemPrice = equipmentTotal;
 
@@ -906,7 +903,7 @@ function TermsBlock({
 }
 
 /* Build standard-products rows, grouping the base machine into one big bullet list to match reference */
-function buildStdRows(std: Opt[], machineName: string, basePrice: number): Row[] {
+function buildStdRows(std: Opt[], machineName: string, _basePrice: number): Row[] {
   // Try to find the "main" standard item (usually the machine with many bullet descriptions)
   // Fall back to listing each standard opt as its own row.
   if (std.length === 0) return [];
