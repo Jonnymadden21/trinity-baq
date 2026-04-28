@@ -5,3 +5,13 @@ dist/
 *.db
 *.db-journal
 .vercel
+**/.vercel/
+.DS_Store
+*.log
+npm-debug.log
+coverage/
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+*~
