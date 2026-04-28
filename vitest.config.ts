@@ -9,6 +9,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     globals: false,
     passWithNoTests: true,
+    setupFiles: ["./tests/setup.ts"],
   },
   resolve: {
     alias: {
