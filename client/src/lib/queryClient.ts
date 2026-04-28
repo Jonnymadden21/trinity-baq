@@ -28,7 +28,7 @@ async function throwIfResNotOk(res: Response) {
 export async function apiRequest<T = unknown>(
   method: string,
   url: string,
-  data?: unknown
+  data?: unknown,
 ): Promise<{ json: () => Promise<T>; raw: Response }> {
   const res = await fetch(url, {
     method,
@@ -45,9 +45,7 @@ export async function apiRequest<T = unknown>(
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
+export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryFunction<T> =
   ({ on401 }) =>
   async ({ queryKey, signal }) => {
     // Safely build URL — skip undefined/null segments rather than stringifying them.

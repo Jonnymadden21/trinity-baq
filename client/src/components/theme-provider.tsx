@@ -9,7 +9,7 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() =>
-    window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "dark"
+    window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "dark",
   );
 
   useEffect(() => {
@@ -18,11 +18,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export const useTheme = () => useContext(ThemeContext);

@@ -4,6 +4,7 @@
 **Project:** trinity-quote-vercel (deployed at https://trinitybaq.com)
 **Status:** Approved scope — pending implementation plan
 **Companion docs:**
+
 - `docs/superpowers/specs/2026-04-28-trinity-baq-seo-design.md` (SEO migration; separate effort)
 
 ## Context
@@ -98,6 +99,7 @@ Single migration `0001_init.sql` (generated from the new `shared/schema.ts`, app
 - `machines.specs`: same Zod-on-read pattern (`MachineSpecsSchema`).
 
 Migration sequence (zero-downtime, performed against a fresh Supabase point-in-time snapshot first):
+
 1. Generate `0001_init.sql`.
 2. Run on staging branch / preview Supabase project.
 3. Spot-check existing data: float→numeric cast preserves values to 2 decimal places (existing prices are whole-dollar integers per seed data), text→timestamp cast requires `using created_at::timestamp` if the existing strings are ISO; otherwise a backfill query.
@@ -129,6 +131,7 @@ Migration sequence (zero-downtime, performed against a fresh Supabase point-in-t
 ## Architecture cleanup
 
 Decompose `client/src/pages/configurator.tsx` into `client/src/features/configurator/`:
+
 - `ConfiguratorPage.tsx` (~150 LOC) — wiring only.
 - `OptionsPanel.tsx`, `OptionCard.tsx` — option rendering.
 - `RoiModal.tsx`, `FinancingModal.tsx` — modal flows.
@@ -161,6 +164,7 @@ Split `tsconfig.json` into `tsconfig.json` (client + shared) and `tsconfig.api.j
 ## Affected files (preliminary)
 
 **New:**
+
 - `server/pricing.ts`, `server/quotes.ts`, `server/machines.ts`
 - `api/_lib/cors.ts`, `api/_lib/handler.ts`, `api/_lib/rateLimit.ts`, `api/_lib/turnstile.ts`, `api/_lib/email.ts`
 - `shared/types.ts` (Zod schemas for JSON columns)
@@ -175,6 +179,7 @@ Split `tsconfig.json` into `tsconfig.json` (client + shared) and `tsconfig.api.j
 - `.env.example`
 
 **Modified:**
+
 - `api/_db.ts` (validate env at import, health probe)
 - `api/machines.ts`, `api/machines/[id].ts` (rename to `[slug].ts`), `api/machines/[id]/options.ts` (N+1 fix), `api/quotes.ts` (full rewrite around `server/pricing.ts`), `api/quotes/[quoteNumber].ts`
 - `shared/schema.ts` (FKs, indexes, money type, timestamps)
@@ -188,6 +193,7 @@ Split `tsconfig.json` into `tsconfig.json` (client + shared) and `tsconfig.api.j
 - `tsconfig.json` (narrow scope), `vercel.json` (cache headers), `.gitignore` (entries), `README.md` (rewrite)
 
 **Deleted:**
+
 - `client/public/brochures/.vercel/` (directory)
 - `client/src/html2pdf.d.ts`
 - 34 unused `client/src/components/ui/*.tsx` files (final list determined by grep at implementation time)
@@ -198,6 +204,7 @@ Split `tsconfig.json` into `tsconfig.json` (client + shared) and `tsconfig.api.j
 Every item must pass before the work is called done.
 
 **Security / integrity**
+
 - `POST /api/quotes` from a non-allowlisted Origin → `403`.
 - Submitting a payload with the honeypot field filled → `200`, no row inserted, log line written.
 - Submitting without a Turnstile token, or with a bad token → `400`.
@@ -208,28 +215,33 @@ Every item must pass before the work is called done.
 - A successful submit produces a Resend email to `LEAD_NOTIFICATION_TO` within 30s with all customer fields and the correct totals.
 
 **Data**
+
 - `\d quotes` shows `base_price numeric(10,2)`, `created_at timestamp`, `updated_at timestamp`.
 - `\d options` shows `category_id` indexed, `machine_id` indexed, both with FK to their parent.
 - Inserting a row with an option pointing at a non-existent category fails at the DB level.
 - `drizzle-kit push` is no longer in `package.json`. `npm run db:migrate` exists and applies pending migrations.
 
 **Reliability**
+
 - Direct-loading every one of the 11 `/configure/:slug` URLs in a fresh tab renders the full page (no blank). Codifies the audit's C7 fix; also unblocks the SEO spec.
 - Setting OS to light mode and reloading in a fresh browser shows light theme.
 - PDF export fails gracefully (toast, button reset) when the proposal DOM is missing.
 - ROI inputs reject negative numbers and clamp absurd values.
 
 **Performance**
+
 - Initial JS bundle (parsed) for the home page is ≤ 300 KB gzipped (down from ~430 KB).
 - `/api/machines` returns `Cache-Control: public, s-maxage=300, stale-while-revalidate=86400`.
 - Options endpoint runs a single query (verify in Supabase logs / `EXPLAIN`).
 
 **Hygiene**
+
 - No file under `dist/.vercel/` after `npm run build`.
 - `.env.example` exists at repo root; a fresh clone can complete the README quickstart end-to-end.
 - Supabase password rotated; old password no longer valid against the cluster.
 
 **Quality**
+
 - `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` all green locally.
 - GitHub Actions CI green on the merge commit.
 - Lighthouse SEO ≥ 95 (after SEO migration ships) on home + one product page.

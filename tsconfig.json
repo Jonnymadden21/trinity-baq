@@ -17,11 +17,6 @@
     "outDir": "./dist",
     "noEmit": true
   },
-  "include": [
-    "client/src/**/*",
-    "shared/**/*",
-    "api/**/*",
-    "scripts/**/*"
-  ],
+  "include": ["client/src/**/*", "shared/**/*", "api/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]
 }

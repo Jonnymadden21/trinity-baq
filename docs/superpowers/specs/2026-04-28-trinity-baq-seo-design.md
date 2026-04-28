@@ -60,12 +60,14 @@ Per-machine titles/descriptions are **generated from a template** using machine 
 Located in `client/public/`:
 
 - `robots.txt` — plain text:
+
   ```
   User-agent: *
   Allow: /
 
   Sitemap: https://trinitybaq.com/sitemap.xml
   ```
+
 - `favicon.ico` — multi-resolution (16×16, 32×32) generated from existing `trinity-logo.jpeg`.
 - `manifest.json` — minimal: name, short_name, theme_color `#D4A843`, background_color `#2D2D2D`, icons.
 

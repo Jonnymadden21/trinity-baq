@@ -111,6 +111,7 @@ This runs both the Vite frontend and the serverless API functions locally.
 ## Machines Included
 
 ### AX Series (Pallet Automation)
+
 - AX1-12 — $165,000
 - AX1-18 — $175,000
 - AX2-16 — $189,245
@@ -123,4 +124,5 @@ This runs both the Vite frontend and the serverless API functions locally.
 - AX5-20 HD — $277,959
 
 ### Ai Series
+
 - Ai Part Loader — $115,900

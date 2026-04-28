@@ -14,7 +14,9 @@ export default function MachineSelector() {
     queryKey: ["/api/machines"],
   });
 
-  const allMachines = machines ? [...machines.filter(m => m.series === "Ai"), ...machines.filter(m => m.series === "AX")] : [];
+  const allMachines = machines
+    ? [...machines.filter((m) => m.series === "Ai"), ...machines.filter((m) => m.series === "AX")]
+    : [];
 
   return (
     <div className="min-h-screen bg-background" data-testid="machine-selector-page">
@@ -47,11 +49,13 @@ export default function MachineSelector() {
               SIMPLIFYING CNC AUTOMATION
             </p>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-4">
-              Build & Price Your<br />Automation System
+              Build & Price Your
+              <br />
+              Automation System
             </h1>
             <p className="text-base text-muted-foreground leading-relaxed max-w-lg">
-              Configure your Trinity system, select options, and get an instant quote.
-              Built in the USA with 8-week lead times.
+              Configure your Trinity system, select options, and get an instant quote. Built in the
+              USA with 8-week lead times.
             </p>
           </div>
           <div className="flex gap-8 mt-10">
@@ -100,9 +104,7 @@ export default function MachineSelector() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <TrinityLogo className="h-8 mb-2" />
-              <p className="text-xs text-muted-foreground">
-                Designed & Built in the United States
-              </p>
+              <p className="text-xs text-muted-foreground">Designed & Built in the United States</p>
             </div>
             <div className="text-xs text-muted-foreground text-right">
               <p>trinityautomation.com</p>
@@ -139,7 +141,10 @@ function MachineCard({ machine }: { machine: Machine }) {
             {machine.series} Series
           </Badge>
           <p className="text-xs text-muted-foreground">
-            from <span className="font-semibold text-foreground">${machine.basePrice.toLocaleString()}</span>
+            from{" "}
+            <span className="font-semibold text-foreground">
+              ${machine.basePrice.toLocaleString()}
+            </span>
           </p>
         </div>
 
@@ -180,7 +185,15 @@ function MachineCard({ machine }: { machine: Machine }) {
   );
 }
 
-function SpecItem({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function SpecItem({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>

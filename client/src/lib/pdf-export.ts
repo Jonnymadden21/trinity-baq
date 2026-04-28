@@ -27,7 +27,7 @@ const BROCHURE_MAP: Record<string, string[]> = {
   "ax4-12-hd": ["ax4-spec.pdf"],
   "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
   "ax5-20-hd": ["ax5-hd-brochure.pdf"],
-  };
+};
 
 /**
  * High-fidelity export: render each `.page` element to its own canvas and add
@@ -115,9 +115,7 @@ export async function exportQuotePdf({ quote }: ExportQuoteArgs) {
       for (const p of qPages) merged.addPage(p);
 
       for (const file of brochureFiles) {
-        const bytes = await fetch(`/brochures/${file}`).then((r) =>
-          r.arrayBuffer(),
-        );
+        const bytes = await fetch(`/brochures/${file}`).then((r) => r.arrayBuffer());
         const bPdf = await PDFDocument.load(bytes);
         const bPages = await merged.copyPages(bPdf, bPdf.getPageIndices());
         for (const p of bPages) merged.addPage(p);

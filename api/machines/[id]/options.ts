@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       categories.map(async (cat) => ({
         ...cat,
         options: await db.select().from(options).where(eq(options.categoryId, cat.id)),
-      }))
+      })),
     );
 
     return res.status(200).json(grouped);

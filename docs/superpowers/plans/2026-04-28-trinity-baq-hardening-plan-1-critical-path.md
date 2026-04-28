@@ -9,11 +9,13 @@
 **Tech Stack:** TypeScript, Vercel Functions, Drizzle ORM + drizzle-kit, postgres-js, Supabase Postgres, Cloudflare Turnstile, Upstash Redis (REST), Resend, Zod, Vitest.
 
 **Companion docs:**
+
 - Spec: `docs/superpowers/specs/2026-04-28-trinity-baq-hardening-design.md`
 - SEO spec (separate effort): `docs/superpowers/specs/2026-04-28-trinity-baq-seo-design.md`
 - Plan 2 (Reliability, Performance & Cleanup): to be written after Plan 1 ships
 
 **Conventions:**
+
 - Project root: `/Users/jmadden/Desktop/selway/Trinity/trinity-quote-vercel`
 - All paths in tasks are relative to project root.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, `test:`, `refactor:`, `docs:`).
@@ -51,6 +53,7 @@ Before running any subsequent task, the following external services must be prov
 ## Task 1: Stop shipping `.vercel/project.json` from `client/public/brochures/`
 
 **Files:**
+
 - Delete: `client/public/brochures/.vercel/` (directory)
 - Modify: `.gitignore`
 
@@ -107,6 +110,7 @@ git commit -m "chore: stop shipping .vercel project metadata in build output"
 ## Task 2: Restore `.env.example` and document new env vars
 
 **Files:**
+
 - Create: `.env.example`
 - Modify: `README.md`
 
@@ -137,28 +141,31 @@ ALLOWED_ORIGINS=https://trinitybaq.com,https://www.trinitybaq.com
 
 Open `README.md`. Replace lines 21–31 (the "Configure Environment" section) with:
 
-```markdown
+````markdown
 ### 2. Configure Environment
 
 ```bash
 cp .env.example .env.local
 ```
+````
 
 Fill in every blank in `.env.local`. See `docs/deployment.md` (TODO in Plan 2) for where to obtain each value. At minimum, `DATABASE_URL` must be set before running `npm run db:migrate` or `npm run db:seed`.
-```
+
+````
 
 - [ ] **Step 2.3: Commit**
 
 ```bash
 git add .env.example README.md
 git commit -m "docs: restore .env.example with all required hardening env vars"
-```
+````
 
 ---
 
 ## Task 3: Add Node engines and the missing tooling scripts
 
 **Files:**
+
 - Modify: `package.json`
 
 - [ ] **Step 3.1: Update `package.json` scripts and add engines**
@@ -272,6 +279,7 @@ Verify `.env.local` now contains all entries from `.env.example`.
 ## Task 5: Set up ESLint + Prettier
 
 **Files:**
+
 - Create: `eslint.config.js`
 - Create: `.prettierrc.json`
 - Create: `.prettierignore`
@@ -297,7 +305,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
-  }
+  },
 );
 ```
 
@@ -349,6 +357,7 @@ git commit -m "chore: add ESLint + Prettier configs and format codebase"
 ## Task 6: Split TypeScript config (client vs api)
 
 **Files:**
+
 - Modify: `tsconfig.json`
 - Create: `tsconfig.api.json`
 
@@ -428,6 +437,7 @@ git commit -m "build: split tsconfig into client and api scopes"
 ## Task 7: Add CI (GitHub Actions)
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 - [ ] **Step 7.1: Create the workflow**
@@ -480,6 +490,7 @@ git commit -m "ci: add GitHub Actions workflow for typecheck + lint + test + bui
 This snapshots the existing production schema as migration `0000_init.sql` so future migrations are diffs against a known starting point.
 
 **Files:**
+
 - Modify: `drizzle.config.ts`
 - Create: `drizzle/0000_init.sql` (auto-generated)
 - Create: `drizzle/meta/0000_snapshot.json` (auto-generated)
@@ -559,6 +570,7 @@ git commit -m "chore(db): seed drizzle migrations baseline matching current prod
 ## Task 9: Schema overhaul (FKs, indexes, money, timestamps, JSON Zod)
 
 **Files:**
+
 - Modify: `shared/schema.ts`
 - Create: `shared/zodTypes.ts`
 
@@ -594,7 +606,7 @@ export const SelectedOptionsSchema = z.array(
     categoryId: z.number().int().positive(),
     name: z.string(),
     price: z.number().nonnegative(),
-  })
+  }),
 );
 export type SelectedOptions = z.infer<typeof SelectedOptionsSchema>;
 
@@ -628,15 +640,7 @@ export type RoiParams = z.infer<typeof RoiParamsSchema>;
 - [ ] **Step 9.2: Rewrite `shared/schema.ts`**
 
 ```ts
-import {
-  pgTable,
-  serial,
-  text,
-  integer,
-  numeric,
-  timestamp,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, numeric, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -670,7 +674,7 @@ export const optionCategories = pgTable(
       .notNull()
       .references(() => machines.id, { onDelete: "cascade" }),
   },
-  (t) => ({ machineIdx: index("idx_option_categories_machine_id").on(t.machineId) })
+  (t) => ({ machineIdx: index("idx_option_categories_machine_id").on(t.machineId) }),
 );
 
 export const options = pgTable(
@@ -692,7 +696,7 @@ export const options = pgTable(
   (t) => ({
     categoryIdx: index("idx_options_category_id").on(t.categoryId),
     machineIdx: index("idx_options_machine_id").on(t.machineId),
-  })
+  }),
 );
 
 export const quotes = pgTable("quotes", {
@@ -749,6 +753,7 @@ cat drizzle/0001_schema_overhaul.sql
 ```
 
 Verify:
+
 - Money columns altered with `USING base_price::numeric(10,2)` (Drizzle should generate this; if not, hand-edit before applying).
 - `created_at` altered with `USING created_at::timestamptz`. **If `created_at` was previously stored as ISO strings**, this works; if as Unix epoch text, the cast will fail and we'll need to hand-edit to `to_timestamp(created_at::bigint)`. Verify by sampling current data first:
   ```bash
@@ -792,6 +797,7 @@ git commit -m "feat(db): schema overhaul with FKs, indexes, numeric money, times
 ## Task 10: Centralized API helpers (cors, errors, env)
 
 **Files:**
+
 - Create: `api/_lib/env.ts`
 - Create: `api/_lib/handler.ts`
 - Modify: `api/_db.ts`
@@ -848,7 +854,7 @@ import { ZodError } from "zod";
 export class HttpError extends Error {
   constructor(
     public status: number,
-    public clientMessage: string
+    public clientMessage: string,
   ) {
     super(clientMessage);
   }
@@ -902,6 +908,7 @@ git commit -m "feat(api): centralized env validation and error handler"
 ## Task 11: Server pricing module (TDD)
 
 **Files:**
+
 - Create: `server/pricing.ts`
 - Create: `tests/unit/pricing.test.ts`
 - Create: `vitest.config.ts`
@@ -958,20 +965,20 @@ describe("computeQuoteTotals", () => {
 
   it("throws when a selected option id is not in allOptions", () => {
     expect(() =>
-      computeQuoteTotals({ machine, allOptions: options, selectedOptionIds: [10, 999] })
+      computeQuoteTotals({ machine, allOptions: options, selectedOptionIds: [10, 999] }),
     ).toThrow(/unknown option/i);
   });
 
   it("throws when a selected option belongs to a different machine", () => {
     const wrong = [...options, { id: 99, machineId: 2, price: "100.00" }];
     expect(() =>
-      computeQuoteTotals({ machine, allOptions: wrong, selectedOptionIds: [99] })
+      computeQuoteTotals({ machine, allOptions: wrong, selectedOptionIds: [99] }),
     ).toThrow(/wrong machine/i);
   });
 
   it("rejects duplicate option ids", () => {
     expect(() =>
-      computeQuoteTotals({ machine, allOptions: options, selectedOptionIds: [10, 10] })
+      computeQuoteTotals({ machine, allOptions: options, selectedOptionIds: [10, 10] }),
     ).toThrow(/duplicate/i);
   });
 });
@@ -1072,6 +1079,7 @@ git commit -m "feat(server): add computeQuoteTotals with cents-precise arithmeti
 ## Task 12: Origin allowlist + honeypot helpers
 
 **Files:**
+
 - Create: `api/_lib/origin.ts`
 - Create: `tests/unit/origin.test.ts`
 
@@ -1091,9 +1099,9 @@ describe("isAllowedOrigin", () => {
   });
 
   it("falls back to Referer prefix when Origin is missing", () => {
-    expect(
-      isAllowedOrigin({ referer: "https://trinitybaq.com/configure/ax2-16" }, allowed)
-    ).toBe(true);
+    expect(isAllowedOrigin({ referer: "https://trinitybaq.com/configure/ax2-16" }, allowed)).toBe(
+      true,
+    );
   });
 
   it("rejects any other origin", () => {
@@ -1119,7 +1127,7 @@ Expected: failures (module not found).
 ```ts
 export function isAllowedOrigin(
   headers: { origin?: string; referer?: string },
-  allowed: string[]
+  allowed: string[],
 ): boolean {
   if (allowed.length === 0) return false;
   if (headers.origin && allowed.includes(headers.origin)) return true;
@@ -1150,6 +1158,7 @@ git commit -m "feat(api): add origin/referer allowlist helper"
 ## Task 13: Turnstile server-verify helper
 
 **Files:**
+
 - Create: `api/_lib/turnstile.ts`
 - Create: `tests/unit/turnstile.test.ts`
 
@@ -1169,7 +1178,7 @@ afterEach(() => fetchSpy.mockReset());
 describe("verifyTurnstile", () => {
   it("returns true when Cloudflare returns success", async () => {
     fetchSpy.mockResolvedValueOnce(
-      new Response(JSON.stringify({ success: true }), { status: 200 })
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
     );
     expect(await verifyTurnstile("secret", "token", "1.2.3.4")).toBe(true);
   });
@@ -1178,7 +1187,7 @@ describe("verifyTurnstile", () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ success: false, "error-codes": ["timeout-or-duplicate"] }), {
         status: 200,
-      })
+      }),
     );
     expect(await verifyTurnstile("secret", "token", "1.2.3.4")).toBe(false);
   });
@@ -1216,7 +1225,7 @@ const ENDPOINT = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 export async function verifyTurnstile(
   secret: string,
   token: string,
-  remoteIp?: string
+  remoteIp?: string,
 ): Promise<boolean> {
   if (!secret || !token) return false;
   const body = new URLSearchParams();
@@ -1255,6 +1264,7 @@ git commit -m "feat(api): add Cloudflare Turnstile server verification"
 ## Task 14: Upstash rate limiter
 
 **Files:**
+
 - Create: `api/_lib/rateLimit.ts`
 - Create: `tests/unit/rateLimit.test.ts`
 
@@ -1342,7 +1352,7 @@ export async function checkRateLimit(
   client: RedisLike | null,
   ip: string,
   limit: number,
-  windowSeconds: number
+  windowSeconds: number,
 ): Promise<{ allowed: boolean; remaining: number }> {
   if (!client) return { allowed: true, remaining: limit };
   const key = `ratelimit:quotes:${ip}`;
@@ -1378,6 +1388,7 @@ git commit -m "feat(api): add Upstash-backed per-IP rate limiter"
 ## Task 15: Resend email helper
 
 **Files:**
+
 - Create: `api/_lib/email.ts`
 - Create: `tests/unit/email.test.ts`
 
@@ -1500,7 +1511,9 @@ export async function sendQuoteEmail(q: QuoteEmailInput): Promise<void> {
     return;
   }
   const { subject, html, text } = renderQuoteEmail(q);
-  const recipients = env.LEAD_NOTIFICATION_TO.split(",").map((s) => s.trim()).filter(Boolean);
+  const recipients = env.LEAD_NOTIFICATION_TO.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   try {
     const result = await client.emails.send({
       from: env.RESEND_FROM_EMAIL,
@@ -1536,6 +1549,7 @@ git commit -m "feat(api): add Resend lead notification helper"
 ## Task 16: Fix N+1 in options endpoint + narrow errors + slug validation
 
 **Files:**
+
 - Modify: `api/machines.ts`, `api/machines/[id].ts`, `api/machines/[id]/options.ts`, `api/quotes/[quoteNumber].ts`
 
 - [ ] **Step 16.1: Replace `api/machines.ts`**
@@ -1614,8 +1628,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     .where(
       inArray(
         options.categoryId,
-        categories.map((c) => c.id)
-      )
+        categories.map((c) => c.id),
+      ),
     )
     .orderBy(options.sortOrder);
 
@@ -1672,6 +1686,7 @@ git commit -m "feat(api): narrow errors, validate slugs, fix N+1, add cache head
 ## Task 17: Rewrite POST /api/quotes (the centerpiece)
 
 **Files:**
+
 - Modify: `api/quotes.ts`
 - Create: `tests/unit/quoteHandler.test.ts`
 
@@ -1748,7 +1763,7 @@ export const QuotePayloadSchema = z.object({
 export type QuotePayload = z.infer<typeof QuotePayloadSchema>;
 
 export function validateQuotePayload(
-  body: unknown
+  body: unknown,
 ): { success: true; data: QuotePayload } | { success: false } {
   const r = QuotePayloadSchema.safeParse(body);
   return r.success ? { success: true, data: r.data } : { success: false };
@@ -1809,7 +1824,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       origin: typeof req.headers.origin === "string" ? req.headers.origin : undefined,
       referer: typeof req.headers.referer === "string" ? req.headers.referer : undefined,
     },
-    env.ALLOWED_ORIGINS
+    env.ALLOWED_ORIGINS,
   );
   if (!ok) throw new HttpError(403, "Forbidden");
 
@@ -1877,7 +1892,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           categoryId: o.categoryId,
           name: o.name,
           price: o.price,
-        }))
+        })),
       ),
       basePrice: totals.basePrice,
       optionsTotal: totals.optionsTotal,
@@ -1925,6 +1940,7 @@ git commit -m "feat(api): public-flow hardened POST /api/quotes (origin, honeypo
 ## Task 18: Wire Turnstile + honeypot into the quote form (frontend)
 
 **Files:**
+
 - Modify: `client/index.html`
 - Modify: `client/src/pages/configurator.tsx`
 - Create: `client/src/components/TurnstileWidget.tsx`
@@ -1954,7 +1970,7 @@ declare global {
           "expired-callback"?: () => void;
           theme?: "light" | "dark" | "auto";
           appearance?: "always" | "execute" | "interaction-only";
-        }
+        },
       ) => string;
       reset: (id?: string) => void;
       remove: (id?: string) => void;
@@ -2081,10 +2097,7 @@ E. In the JSX where the customer info form is rendered (the modal that pops befo
 F. Disable the submit button until `turnstileToken` is non-empty:
 
 ```tsx
-<Button
-  type="submit"
-  disabled={quoteMutation.isPending || !turnstileToken}
->
+<Button type="submit" disabled={quoteMutation.isPending || !turnstileToken}>
   {quoteMutation.isPending ? "Submitting..." : "Get Quote"}
 </Button>
 ```
@@ -2141,6 +2154,7 @@ git commit -m "feat(client): add Turnstile widget + honeypot to quote form, drop
 The quote-summary page reads back the saved quote. The schema field shape is unchanged for the page's consumption (it still gets `selectedOptions`, `basePrice`, etc.), but `selectedOptions` is now server-rebuilt. Verify the summary page still renders.
 
 **Files:**
+
 - Inspect: `client/src/pages/quote-summary.tsx`
 - Modify only if a field name mismatches.
 
@@ -2216,6 +2230,7 @@ Re-deploy: `vercel --prod=false`.
 - [ ] **Step 20.3: Smoke-test the preview**
 
 In a real browser:
+
 1. Navigate to the preview URL.
 2. Pick AX2-16. Add a couple of options.
 3. Open dev tools → Network. Submit the quote form with valid info.
@@ -2261,6 +2276,7 @@ Expected: first command returns 200 + JSON; second returns **403**.
 - [ ] **Step 20.7: Smoke-test the live form end-to-end**
 
 Submit a real quote on https://trinitybaq.com from a browser. Confirm:
+
 - 201 response.
 - Lead email lands in `LEAD_NOTIFICATION_TO`.
 - Row appears in `quotes` with `total_price` matching the displayed total to the cent.
@@ -2280,6 +2296,7 @@ git push origin v1.1.0
 (Performed at write time, fixed inline.)
 
 **Spec coverage:**
+
 - Server-recomputed pricing — Tasks 11, 17 ✅
 - Machine + option ID validation — Task 17 ✅
 - Origin/Referer — Tasks 12, 17 ✅

@@ -11,10 +11,7 @@ import type { Quote } from "@shared/schema";
 
 /* Demo quote data per-machine */
 function makeDemoQuote(machineSlug: string): Quote {
-  const map: Record<
-    string,
-    { name: string; base: number; prefix: string }
-  > = {
+  const map: Record<string, { name: string; base: number; prefix: string }> = {
     "ax1-12": { name: "AX1-12", base: 165000, prefix: "AX112" },
     "ax1-18": { name: "AX1-18", base: 175000, prefix: "AX118" },
     "ax2-16": { name: "AX2-16", base: 189245.12, prefix: "AX216" },
@@ -94,8 +91,7 @@ function makeDemoQuote(machineSlug: string): Quote {
     const r = rate / 100 / 12;
     const monthlyPayment =
       r > 0
-        ? (principal * (r * Math.pow(1 + r, term))) /
-          (Math.pow(1 + r, term) - 1)
+        ? (principal * (r * Math.pow(1 + r, term))) / (Math.pow(1 + r, term) - 1)
         : principal / term;
     const totalCost = downPayment + monthlyPayment * term;
     return {
@@ -122,12 +118,10 @@ function makeDemoQuote(machineSlug: string): Quote {
     const unmannedUtilBefore = 0,
       unmannedUtilAfter = 70;
     const mannedHrs = mannedShifts * hrsPerShift;
-    const mannedGainHrs =
-      (mannedHrs * (mannedUtilAfter - mannedUtilBefore)) / 100;
+    const mannedGainHrs = (mannedHrs * (mannedUtilAfter - mannedUtilBefore)) / 100;
     const mannedGainRev = mannedGainHrs * shopRate * workingDays;
     const unmannedHrs = unmannedShifts * hrsPerShift;
-    const unmannedGainHrs =
-      (unmannedHrs * (unmannedUtilAfter - unmannedUtilBefore)) / 100;
+    const unmannedGainHrs = (unmannedHrs * (unmannedUtilAfter - unmannedUtilBefore)) / 100;
     const unmannedGainRev = unmannedGainHrs * shopRate * workingDays;
     const laborSaving = operatorWage * mannedGainHrs * workingDays * 0.5;
     const totalGainRev = mannedGainRev + unmannedGainRev;
@@ -137,8 +131,7 @@ function makeDemoQuote(machineSlug: string): Quote {
     const year3ROI = ((netBenefit * 3 - totalPrice) / totalPrice) * 100;
     const year5ROI = ((netBenefit * 5 - totalPrice) / totalPrice) * 100;
     const capacityMult =
-      ((mannedHrs * mannedUtilAfter) / 100 +
-        (unmannedHrs * unmannedUtilAfter) / 100) /
+      ((mannedHrs * mannedUtilAfter) / 100 + (unmannedHrs * unmannedUtilAfter) / 100) /
       Math.max(0.01, (mannedHrs * mannedUtilBefore) / 100);
     const taxSavings = totalPrice * 0.21;
     return {
@@ -214,16 +207,11 @@ export default function QuotePreview() {
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-        <b>PREVIEW MODE</b> — Demo quote ·{" "}
-        <a href="#/preview/ax1-12">AX1-12</a> ·{" "}
-        <a href="#/preview/ax1-18">AX1-18</a> ·{" "}
-        <a href="#/preview/ax2-16">AX2-16</a> ·{" "}
-        <a href="#/preview/ax2-24">AX2-24</a> ·{" "}
-        <a href="#/preview/ax2-16-duo">AX2-16 Duo</a> ·{" "}
-        <a href="#/preview/ax2-24-duo">AX2-24 Duo</a> ·{" "}
-        <a href="#/preview/ax4-12">AX4-12</a> ·{" "}
-        <a href="#/preview/ax4-12-hd">AX4-12 HD</a> ·{" "}
-        <a href="#/preview/ax5-20">AX5-20</a> ·{" "}
+        <b>PREVIEW MODE</b> — Demo quote · <a href="#/preview/ax1-12">AX1-12</a> ·{" "}
+        <a href="#/preview/ax1-18">AX1-18</a> · <a href="#/preview/ax2-16">AX2-16</a> ·{" "}
+        <a href="#/preview/ax2-24">AX2-24</a> · <a href="#/preview/ax2-16-duo">AX2-16 Duo</a> ·{" "}
+        <a href="#/preview/ax2-24-duo">AX2-24 Duo</a> · <a href="#/preview/ax4-12">AX4-12</a> ·{" "}
+        <a href="#/preview/ax4-12-hd">AX4-12 HD</a> · <a href="#/preview/ax5-20">AX5-20</a> ·{" "}
         <a href="#/preview/ax5-20-hd">AX5-20 HD</a> ·{" "}
         <a href="#/preview/ai-part-loader">Ai Part Loader</a>
       </div>

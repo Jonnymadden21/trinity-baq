@@ -14,10 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const [quote] = await db
-      .select()
-      .from(quotes)
-      .where(eq(quotes.quoteNumber, quoteNumber));
+    const [quote] = await db.select().from(quotes).where(eq(quotes.quoteNumber, quoteNumber));
 
     if (!quote) {
       return res.status(404).json({ error: "Quote not found" });

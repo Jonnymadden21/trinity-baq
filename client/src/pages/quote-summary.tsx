@@ -82,7 +82,7 @@ const BROCHURE_MAP: Record<string, string[]> = {
   "ax4-12-hd": ["ax4-spec.pdf"],
   "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
   "ax5-20-hd": ["ax5-hd-brochure.pdf"],
-  };
+};
 
 /* Per-machine branding — series logo, hero, tagline */
 function brandForSlug(slug: string, machineName: string) {
@@ -105,12 +105,14 @@ function brandForSlug(slug: string, machineName: string) {
     tagline = ["Automated Machine Tending", "Small/Medium Vertical Machining Centers"];
     seriesShort = "Ai";
   } else if (ax5) {
-    seriesLogo = slug === "ax5-20-hd"
-      ? `${import.meta.env.BASE_URL}proposal-assets/trinity-ax5-hd-logo.png`
-      : `${import.meta.env.BASE_URL}proposal-assets/trinity-ax5-logo.png`;
-    hero = slug === "ax5-20-hd"
-      ? `${import.meta.env.BASE_URL}proposal-assets/ax5-hd-hero.png`
-      : `${import.meta.env.BASE_URL}proposal-assets/ax5-hero.png`;
+    seriesLogo =
+      slug === "ax5-20-hd"
+        ? `${import.meta.env.BASE_URL}proposal-assets/trinity-ax5-hd-logo.png`
+        : `${import.meta.env.BASE_URL}proposal-assets/trinity-ax5-logo.png`;
+    hero =
+      slug === "ax5-20-hd"
+        ? `${import.meta.env.BASE_URL}proposal-assets/ax5-hd-hero.png`
+        : `${import.meta.env.BASE_URL}proposal-assets/ax5-hero.png`;
     tagline = ["Automated Pallet System for", "Medium/Large Vertical Machining Centers"];
     seriesShort = "AX";
   } else if (ax4) {
@@ -207,8 +209,8 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
   });
 
   const equipmentTotal = quote.totalPrice;
-  const installOpt = add.find((o) =>
-    /install/i.test(o.name) || /install/i.test(o.partNumber || ""),
+  const installOpt = add.find(
+    (o) => /install/i.test(o.name) || /install/i.test(o.partNumber || ""),
   );
   // System Price = total MINUS installation line (matches reference where "AX System Price" != total if install present)
   const systemPrice = equipmentTotal;
@@ -274,10 +276,14 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
 
       {/* ============== DOCUMENT ============== */}
       <div className="prop">
-
         {/* ===== PAGE 1 — COVER ===== */}
         <section className="page">
-          <PageHeader brand={brand} title={quoteHeaderTitle} qnum={quote.quoteNumber} date={quoteDateStr} />
+          <PageHeader
+            brand={brand}
+            title={quoteHeaderTitle}
+            qnum={quote.quoteNumber}
+            date={quoteDateStr}
+          />
 
           <div className="cover-title">
             <div className="cover-title-main">TRINITY AUTOMATION</div>
@@ -319,12 +325,19 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
 
         {/* ===== PAGE 2 — CONFIG + PRODUCTS ===== */}
         <section className="page">
-          <PageHeader brand={brand} title={quoteHeaderTitle} qnum={quote.quoteNumber} date={quoteDateStr} />
+          <PageHeader
+            brand={brand}
+            title={quoteHeaderTitle}
+            qnum={quote.quoteNumber}
+            date={quoteDateStr}
+          />
 
           <h2 className="section-title">Configuration Details</h2>
           <div className="config-grid">
             <div className="config-col">
-              <div className="config-col-header">{brand.seriesShort === "Ai" ? "Ai Configuration" : quote.machineName}</div>
+              <div className="config-col-header">
+                {brand.seriesShort === "Ai" ? "Ai Configuration" : quote.machineName}
+              </div>
               <div className="config-col-body">
                 <ul>
                   {brand.seriesShort === "Ai" ? (
@@ -380,7 +393,10 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
           </div>
 
           <h2 className="section-title">Standard Products &amp; Services</h2>
-          <ProductTable rows={buildStdRows(std, quote.machineName, quote.basePrice)} showPrice="included" />
+          <ProductTable
+            rows={buildStdRows(std, quote.machineName, quote.basePrice)}
+            showPrice="included"
+          />
 
           {add.length > 0 && (
             <>
@@ -390,7 +406,10 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                   partNumber: o.partNumber || "—",
                   name: o.name,
                   bullets: o.description
-                    ? o.description.split("\n").map((l) => l.trim()).filter(Boolean)
+                    ? o.description
+                        .split("\n")
+                        .map((l) => l.trim())
+                        .filter(Boolean)
                     : [],
                   unitPrice: m2(o.price),
                   qty: 1,
@@ -434,7 +453,12 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
         {/* ===== PAGE 3 — BAQ-ONLY: FINANCING + ROI ===== */}
         {(fp || rp) && (
           <section className="page">
-            <PageHeader brand={brand} title={quoteHeaderTitle} qnum={quote.quoteNumber} date={quoteDateStr} />
+            <PageHeader
+              brand={brand}
+              title={quoteHeaderTitle}
+              qnum={quote.quoteNumber}
+              date={quoteDateStr}
+            />
 
             <div className="baq-banner">
               <span className="baq-banner-tag">Build-a-Quote Analysis</span>
@@ -514,11 +538,13 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                 </div>
 
                 <div className="roi-row">
-                  {([
-                    ["Year 1", rp.year1ROI],
-                    ["Year 3", rp.year3ROI],
-                    ["Year 5", rp.year5ROI],
-                  ] as [string, number][]).map(([l, v]) => (
+                  {(
+                    [
+                      ["Year 1", rp.year1ROI],
+                      ["Year 3", rp.year3ROI],
+                      ["Year 5", rp.year5ROI],
+                    ] as [string, number][]
+                  ).map(([l, v]) => (
                     <div key={l} className="roi-chip">
                       <span className="roi-chip-label">{l}</span>
                       <span className="roi-chip-value">{Math.round(v)}%</span>
@@ -531,7 +557,8 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                   <div>
                     <div className="benefit-name">Manned Shift Improvement</div>
                     <div className="benefit-formula">
-                      {rp.mannedGainHrs?.toFixed(1)} hrs/day × ${rp.shopRate} × {rp.workingDays} days
+                      {rp.mannedGainHrs?.toFixed(1)} hrs/day × ${rp.shopRate} × {rp.workingDays}{" "}
+                      days
                     </div>
                   </div>
                   <div className="benefit-value">{m0(Math.round(rp.mannedGainRev ?? 0))}</div>
@@ -543,7 +570,8 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                         Unmanned Shift — <span className="gold">NEW REVENUE</span>
                       </div>
                       <div className="benefit-formula">
-                        {rp.unmannedGainHrs?.toFixed(1)} hrs/day × ${rp.shopRate} × {rp.workingDays} days
+                        {rp.unmannedGainHrs?.toFixed(1)} hrs/day × ${rp.shopRate} × {rp.workingDays}{" "}
+                        days
                       </div>
                     </div>
                     <div className="benefit-value">{m0(Math.round(rp.unmannedGainRev ?? 0))}</div>
@@ -553,7 +581,8 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                   <div>
                     <div className="benefit-name">Labor Reallocation Value</div>
                     <div className="benefit-formula">
-                      {rp.mannedGainHrs?.toFixed(1)} hrs × ${rp.operatorWage} × {rp.workingDays} days × 50%
+                      {rp.mannedGainHrs?.toFixed(1)} hrs × ${rp.operatorWage} × {rp.workingDays}{" "}
+                      days × 50%
                     </div>
                   </div>
                   <div className="benefit-value">{m0(Math.round(rp.laborSaving))}</div>
@@ -575,7 +604,8 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                 </div>
                 <div className="roi-assumptions">
                   Based on {rp.mannedShifts} manned + {rp.unmannedShifts} unmanned shifts ·{" "}
-                  {rp.hrsPerShift} hrs/shift · ${rp.shopRate}/hr shop rate · {rp.workingDays} working days/year
+                  {rp.hrsPerShift} hrs/shift · ${rp.shopRate}/hr shop rate · {rp.workingDays}{" "}
+                  working days/year
                 </div>
               </>
             )}
@@ -586,7 +616,12 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
 
         {/* ===== PAGE 4 — TERMS & CONDITIONS ===== */}
         <section className="page">
-          <PageHeader brand={brand} title={quoteHeaderTitle} qnum={quote.quoteNumber} date={quoteDateStr} />
+          <PageHeader
+            brand={brand}
+            title={quoteHeaderTitle}
+            qnum={quote.quoteNumber}
+            date={quoteDateStr}
+          />
 
           <TermsBlock
             heading="General Assumptions"
@@ -724,7 +759,11 @@ function PageHeader({
           <img src={brand.seriesLogo} alt="Trinity" className="ph-series-logo" />
         ) : (
           <div className="ph-series-ai">
-            <img src={`${import.meta.env.BASE_URL}trinity-logo.jpeg`} alt="Trinity" className="ph-series-ai-logo" />
+            <img
+              src={`${import.meta.env.BASE_URL}trinity-logo.jpeg`}
+              alt="Trinity"
+              className="ph-series-ai-logo"
+            />
           </div>
         )}
         <div className="ph-tagline">
@@ -747,11 +786,21 @@ function PageFooter({ page, total }: { page: number; total: number }) {
   return (
     <footer className="pf">
       <div className="pf-logo-wrap">
-        <img src={`${import.meta.env.BASE_URL}proposal-assets/trinity-footer-logo.png`} alt="Trinity" className="pf-logo" />
+        <img
+          src={`${import.meta.env.BASE_URL}proposal-assets/trinity-footer-logo.png`}
+          alt="Trinity"
+          className="pf-logo"
+        />
       </div>
       <div className="pf-lines">
-        <div>Trinityautomation.com &nbsp;&nbsp;▪&nbsp;&nbsp; Sales@trinityautomation.com &nbsp;&nbsp;▪&nbsp;&nbsp; (800) 762-6864</div>
-        <div>NorCal - 431 Nelo Street Santa Clara, CA 95054 &nbsp;&nbsp;▪&nbsp;&nbsp; SoCal - 4582 Brickell Privado Ontario, CA 91761</div>
+        <div>
+          Trinityautomation.com &nbsp;&nbsp;▪&nbsp;&nbsp; Sales@trinityautomation.com
+          &nbsp;&nbsp;▪&nbsp;&nbsp; (800) 762-6864
+        </div>
+        <div>
+          NorCal - 431 Nelo Street Santa Clara, CA 95054 &nbsp;&nbsp;▪&nbsp;&nbsp; SoCal - 4582
+          Brickell Privado Ontario, CA 91761
+        </div>
       </div>
       <div className="pf-pagenum">
         Page {page} | {total}
@@ -769,13 +818,7 @@ type Row = {
   subTotal: string;
 };
 
-function ProductTable({
-  rows,
-  showPrice,
-}: {
-  rows: Row[];
-  showPrice: "included" | "show";
-}) {
+function ProductTable({ rows, showPrice }: { rows: Row[]; showPrice: "included" | "show" }) {
   return (
     <table className="product-table">
       <thead>
@@ -811,15 +854,7 @@ function ProductTable({
   );
 }
 
-function KPI({
-  label,
-  value,
-  green,
-}: {
-  label: string;
-  value: string;
-  green?: boolean;
-}) {
+function KPI({ label, value, green }: { label: string; value: string; green?: boolean }) {
   return (
     <div className="kpi">
       <div className="kpi-label">{label}</div>
@@ -841,8 +876,8 @@ function HourlyCostGrid({ fp, rp }: { fp: FP; rp: RP }) {
         <KPI label="Hrs / Day" value={String(hpd)} />
       </div>
       <div className="roi-assumptions">
-        Based on {fp.termMonths}-month financing ·{" "}
-        {rp.mannedShifts + rp.unmannedShifts} shifts × {rp.hrsPerShift} hrs = {hpd} hrs/day
+        Based on {fp.termMonths}-month financing · {rp.mannedShifts + rp.unmannedShifts} shifts ×{" "}
+        {rp.hrsPerShift} hrs = {hpd} hrs/day
       </div>
     </>
   );
@@ -897,8 +932,7 @@ function buildStdRows(std: Opt[], machineName: string, basePrice: number): Row[]
 
   // First row's partNumber: if the first std item has no partNumber, synthesize something like AX2-16_G5
   if (!std[0].partNumber) {
-    rows[0].partNumber =
-      machineName.replace(/\s+/g, "-") + "_G" + Math.max(1, std.length % 9);
+    rows[0].partNumber = machineName.replace(/\s+/g, "-") + "_G" + Math.max(1, std.length % 9);
   }
   return rows;
 }
