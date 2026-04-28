@@ -1,36 +1,47 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../../_db.js";
-import { optionCategories, options } from "../../../shared/schema.js";
-import { eq, asc } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import { db } from "../../_db";
+import { machines, optionCategories, options } from "../../../shared/schema";
+import { withErrorHandling, methodNotAllowed, HttpError } from "../../_lib/handler";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+const SLUG_RE = /^[a-z0-9-]{1,64}$/;
 
+export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
   const { id } = req.query;
-  const machineId = Number(id);
-  if (isNaN(machineId)) {
-    return res.status(400).json({ error: "Invalid machine ID" });
+  const slug = typeof id === "string" ? id : undefined;
+  if (!slug || !SLUG_RE.test(slug)) throw new HttpError(400, "Invalid slug");
+
+  const [machine] = await db.select().from(machines).where(eq(machines.slug, slug)).limit(1);
+  if (!machine) throw new HttpError(404, "Not found");
+
+  const categories = await db
+    .select()
+    .from(optionCategories)
+    .where(eq(optionCategories.machineId, machine.id))
+    .orderBy(optionCategories.sortOrder);
+
+  if (categories.length === 0) {
+    res.status(200).json([]);
+    return;
   }
 
-  try {
-    const categories = await db
-      .select()
-      .from(optionCategories)
-      .where(eq(optionCategories.machineId, machineId))
-      .orderBy(asc(optionCategories.sortOrder));
+  const allOpts = await db
+    .select()
+    .from(options)
+    .where(
+      inArray(
+        options.categoryId,
+        categories.map((c) => c.id),
+      ),
+    )
+    .orderBy(options.id);
 
-    const grouped = await Promise.all(
-      categories.map(async (cat) => ({
-        ...cat,
-        options: await db.select().from(options).where(eq(options.categoryId, cat.id)),
-      })),
-    );
+  const grouped = categories.map((c) => ({
+    ...c,
+    options: allOpts.filter((o) => o.categoryId === c.id),
+  }));
 
-    return res.status(200).json(grouped);
-  } catch (error: any) {
-    console.error("Error fetching options:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-}
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+  res.status(200).json(grouped);
+});

@@ -1,17 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "./_db.js";
-import { machines } from "../shared/schema.js";
+import { db } from "./_db";
+import { machines } from "../shared/schema";
+import { withErrorHandling, methodNotAllowed } from "./_lib/handler";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  try {
-    const allMachines = await db.select().from(machines);
-    return res.status(200).json(allMachines);
-  } catch (error: any) {
-    console.error("Error fetching machines:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-}
+export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
+  const all = await db.select().from(machines);
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+  res.status(200).json(all);
+});

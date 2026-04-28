@@ -1,27 +1,17 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../_db.js";
-import { quotes } from "../../shared/schema.js";
 import { eq } from "drizzle-orm";
+import { db } from "../_db";
+import { quotes } from "../../shared/schema";
+import { withErrorHandling, methodNotAllowed, HttpError } from "../_lib/handler";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+const QUOTE_NUM_RE = /^[A-Za-z0-9-]{1,64}$/;
 
+export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
   const { quoteNumber } = req.query;
-  if (!quoteNumber || typeof quoteNumber !== "string") {
-    return res.status(400).json({ error: "Missing quote number" });
-  }
-
-  try {
-    const [quote] = await db.select().from(quotes).where(eq(quotes.quoteNumber, quoteNumber));
-
-    if (!quote) {
-      return res.status(404).json({ error: "Quote not found" });
-    }
-    return res.status(200).json(quote);
-  } catch (error: any) {
-    console.error("Error fetching quote:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-}
+  const qn = typeof quoteNumber === "string" ? quoteNumber : undefined;
+  if (!qn || !QUOTE_NUM_RE.test(qn)) throw new HttpError(400, "Invalid quote number");
+  const [q] = await db.select().from(quotes).where(eq(quotes.quoteNumber, qn)).limit(1);
+  if (!q) throw new HttpError(404, "Not found");
+  res.status(200).json(q);
+});

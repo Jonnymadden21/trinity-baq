@@ -1,26 +1,18 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../_db.js";
-import { machines } from "../../shared/schema.js";
 import { eq } from "drizzle-orm";
+import { db } from "../_db";
+import { machines } from "../../shared/schema";
+import { withErrorHandling, methodNotAllowed, HttpError } from "../_lib/handler";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+const SLUG_RE = /^[a-z0-9-]{1,64}$/;
 
+export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  if (req.method !== "GET") return methodNotAllowed(res, ["GET"]);
   const { id } = req.query;
-  if (!id || typeof id !== "string") {
-    return res.status(400).json({ error: "Missing slug" });
-  }
-
-  try {
-    const [machine] = await db.select().from(machines).where(eq(machines.slug, id));
-    if (!machine) {
-      return res.status(404).json({ error: "Machine not found" });
-    }
-    return res.status(200).json(machine);
-  } catch (error: any) {
-    console.error("Error fetching machine:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-}
+  const slug = typeof id === "string" ? id : undefined;
+  if (!slug || !SLUG_RE.test(slug)) throw new HttpError(400, "Invalid slug");
+  const [m] = await db.select().from(machines).where(eq(machines.slug, slug)).limit(1);
+  if (!m) throw new HttpError(404, "Not found");
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+  res.status(200).json(m);
+});
