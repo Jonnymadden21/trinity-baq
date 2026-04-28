@@ -20,14 +20,10 @@ Build-a-quote web application for Trinity Automation CNC pallet systems.
 ### 2. Configure Environment
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Edit `.env` and paste your Supabase connection string:
-
-```
-DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
-```
+Fill in every blank in `.env.local`. See `docs/deployment.md` (TODO in Plan 2) for where to obtain each value. At minimum, `DATABASE_URL` must be set before running `npm run db:migrate` or `npm run db:seed`.
 
 ### 3. Install Dependencies
 
