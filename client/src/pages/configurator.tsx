@@ -57,6 +57,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { Machine, Option, OptionCategory } from "@shared/schema";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 type CategoryWithOptions = OptionCategory & { options: Option[] };
 
@@ -117,6 +118,8 @@ export default function Configurator() {
     unmannedUtilBefore: 0,
     unmannedUtilAfter: 70,
   });
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [honeypot, setHoneypot] = useState<string>("");
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const defaultsAppliedRef = useRef(false);
 
@@ -291,41 +294,40 @@ export default function Configurator() {
   const quoteMutation = useMutation({
     mutationFn: async () => {
       if (!machine || !categories) throw new Error("Not ready");
-      const quoteNumber = `TQ-${Date.now().toString(36).toUpperCase()}`;
       const selectedOpts = categories.flatMap((cat) =>
-        cat.options
-          .filter((o) => selectedOptions[o.id])
-          .map((o) => ({
-            id: o.id,
-            name: o.name,
-            partNumber: o.partNumber,
-            description: o.description,
-            price: o.price,
-            isStandard: o.isStandard,
-            category: cat.name,
-          })),
+        cat.options.filter((o) => selectedOptions[o.id]),
       );
+      const financingParamsForServer = financing
+        ? {
+            downPayment: Number(financingCalc.downPayment),
+            termMonths: Number(financing.termMonths),
+            apr: Number(financing.interestRate),
+            monthlyPayment: Number(financingCalc.monthlyPayment),
+          }
+        : null;
+      const roiParamsForServer = {
+        shopRate: roi.shopRate,
+        hrsPerShift: roi.hrsPerShift,
+        operatorWage: roi.operatorWage,
+        workingDays: roi.workingDays,
+        mannedShifts: roi.mannedShifts,
+        unmannedShifts: roi.unmannedShifts,
+        mannedUtilBefore: roi.mannedUtilBefore,
+        mannedUtilAfter: roi.mannedUtilAfter,
+        unmannedUtilBefore: roi.unmannedUtilBefore,
+        unmannedUtilAfter: roi.unmannedUtilAfter,
+      };
       const res = await apiRequest("POST", "/api/quotes", {
-        quoteNumber,
-        machineName: machine.name,
         machineId: machine.id,
+        selectedOptionIds: selectedOpts.map((o) => o.id),
         customerName: formData.name,
         customerEmail: formData.email,
         customerCompany: formData.company || null,
         customerPhone: formData.phone || null,
-        selectedOptions: JSON.stringify(selectedOpts),
-        basePrice: machine.basePrice,
-        optionsTotal,
-        totalPrice,
-        financingParams: JSON.stringify({
-          ...financing,
-          downPayment: financingCalc.downPayment,
-          financedAmount: financingCalc.principal,
-          monthlyPayment: financingCalc.monthlyPayment,
-          totalCost: financingCalc.totalCost,
-        }),
-        roiParams: JSON.stringify({ ...roi, ...roiCalc }),
-        createdAt: new Date().toISOString(),
+        financingParams: financingParamsForServer,
+        roiParams: roiParamsForServer,
+        website: honeypot,
+        turnstileToken,
       });
       return res.json();
     },
@@ -1344,6 +1346,20 @@ export default function Configurator() {
                     </div>
                   )}
                 </div>
+                {/* honeypot — invisible to humans */}
+                <input
+                  type="text"
+                  name="website"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{ position: "absolute", left: "-10000px", width: "1px", height: "1px", opacity: 0 }}
+                />
+
+                <TurnstileWidget onToken={setTurnstileToken} onError={() => setTurnstileToken("")} />
+
                 <div className="flex gap-3">
                   <Button
                     type="button"
@@ -1356,7 +1372,7 @@ export default function Configurator() {
                   <Button
                     type="submit"
                     className="flex-1 bg-primary text-primary-foreground font-bold"
-                    disabled={quoteMutation.isPending}
+                    disabled={quoteMutation.isPending || !turnstileToken}
                   >
                     {quoteMutation.isPending ? "Generating…" : "Generate Quote & PDF"}
                   </Button>
