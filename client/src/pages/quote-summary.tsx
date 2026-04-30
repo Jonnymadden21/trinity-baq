@@ -12,7 +12,7 @@ type Opt = {
   name: string;
   partNumber: string | null;
   description?: string;
-  price: number;
+  price: string | number;
   isStandard: boolean;
   category: string;
 };
@@ -53,6 +53,9 @@ type RP = {
 };
 
 /* ---------- Helpers ---------- */
+const toNum = (v: string | number | null | undefined): number =>
+  typeof v === "number" ? v : v == null ? 0 : Number(v) || 0;
+
 const money = (n: number, frac = 2) =>
   "$" +
   (n || 0).toLocaleString("en-US", {
@@ -193,7 +196,7 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
 
   const { fp, rp } = parsed;
   const std = parsed.opts.filter((o) => o.isStandard);
-  const add = parsed.opts.filter((o) => !o.isStandard && o.price > 0);
+  const add = parsed.opts.filter((o) => !o.isStandard && toNum(o.price) > 0);
 
   const slug = quote.machineName
     .toLowerCase()
@@ -208,7 +211,7 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
     year: "numeric",
   });
 
-  const equipmentTotal = quote.totalPrice;
+  const equipmentTotal = toNum(quote.totalPrice);
   // System Price = total MINUS installation line (matches reference where "AX System Price" != total if install present)
   const systemPrice = equipmentTotal;
 
@@ -391,7 +394,7 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
 
           <h2 className="section-title">Standard Products &amp; Services</h2>
           <ProductTable
-            rows={buildStdRows(std, quote.machineName, quote.basePrice)}
+            rows={buildStdRows(std, quote.machineName, toNum(quote.basePrice))}
             showPrice="included"
           />
 
@@ -408,9 +411,9 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                         .map((l) => l.trim())
                         .filter(Boolean)
                     : [],
-                  unitPrice: m2(o.price),
+                  unitPrice: m2(toNum(o.price)),
                   qty: 1,
-                  subTotal: m2(o.price),
+                  subTotal: m2(toNum(o.price)),
                 }))}
                 showPrice="show"
               />

@@ -8,6 +8,13 @@
       "when": 1777473817269,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777577337448,
+      "tag": "0001_schema_overhaul",
+      "breakpoints": true
     }
   ]
 }

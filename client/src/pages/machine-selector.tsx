@@ -8,6 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sun, Moon, ArrowRight, Factory, Cpu, Shield, Zap } from "lucide-react";
 import type { Machine } from "@shared/schema";
 
+const toNum = (v: string | number | null | undefined): number =>
+  typeof v === "number" ? v : v == null ? 0 : Number(v) || 0;
+
 export default function MachineSelector() {
   const { theme, toggleTheme } = useTheme();
   const { data: machines, isLoading } = useQuery<Machine[]>({
@@ -143,7 +146,7 @@ function MachineCard({ machine }: { machine: Machine }) {
           <p className="text-xs text-muted-foreground">
             from{" "}
             <span className="font-semibold text-foreground">
-              ${machine.basePrice.toLocaleString()}
+              ${toNum(machine.basePrice).toLocaleString()}
             </span>
           </p>
         </div>

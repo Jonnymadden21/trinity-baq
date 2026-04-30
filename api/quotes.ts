@@ -81,7 +81,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     selectedOptionIds: p.selectedOptionIds,
   });
 
-  // 9. Insert (coerce strings → numbers for current doublePrecision columns; will be removed after Phase B Task 9)
+  // 9. Insert (numeric columns accept string values; createdAt/updatedAt default server-side)
   const quoteNumber = generateQuoteNumber();
   const [inserted] = await db
     .insert(quotes)
@@ -101,12 +101,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           price: o.price,
         })),
       ),
-      basePrice: Number(totals.basePrice),
-      optionsTotal: Number(totals.optionsTotal),
-      totalPrice: Number(totals.totalPrice),
+      basePrice: totals.basePrice,
+      optionsTotal: totals.optionsTotal,
+      totalPrice: totals.totalPrice,
       financingParams: p.financingParams ? JSON.stringify(p.financingParams) : null,
       roiParams: p.roiParams ? JSON.stringify(p.roiParams) : null,
-      createdAt: new Date().toISOString(),
     })
     .returning();
 

@@ -4,7 +4,7 @@ type SelectedOption = {
   id: number;
   name: string;
   partNumber: string | null;
-  price: number;
+  price: string | number;
   isStandard: boolean;
   category: string;
 };

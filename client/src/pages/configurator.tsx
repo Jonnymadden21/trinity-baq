@@ -74,6 +74,9 @@ const CATEGORY_ICONS: Record<string, any> = {
   software: Cpu,
 };
 
+const toNum = (v: string | number | null | undefined): number =>
+  typeof v === "number" ? v : v == null ? 0 : Number(v) || 0;
+
 const USD = (n: number, frac = 0) =>
   "$" +
   n.toLocaleString("en-US", {
@@ -181,13 +184,13 @@ export default function Configurator() {
       if (!on) continue;
       const opt = optionById.get(Number(idStr));
       if (!opt || opt.isStandard) continue;
-      total += opt.price * (opt.quantity || 1);
+      total += toNum(opt.price) * (opt.quantity || 1);
       count++;
       added.push(opt);
     }
     return {
       optionsTotal: total,
-      totalPrice: machine.basePrice + total,
+      totalPrice: toNum(machine.basePrice) + total,
       selectedCount: count,
       selectedAddedOptions: added,
     };
@@ -543,7 +546,7 @@ export default function Configurator() {
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-muted-foreground">{machine.name} Base</span>
               <span className="text-sm font-semibold text-foreground">
-                {USD(machine.basePrice, 2)}
+                {USD(toNum(machine.basePrice), 2)}
               </span>
             </div>
             <Separator className="my-2" />
@@ -558,7 +561,7 @@ export default function Configurator() {
                 </p>
               ) : (
                 selectedAddedOptions
-                  .filter((o) => o.price > 0)
+                  .filter((o) => toNum(o.price) > 0)
                   .map((o) => (
                     <div key={o.id} className="flex justify-between items-start py-1.5 group">
                       <div className="flex-1 mr-2">
@@ -567,7 +570,7 @@ export default function Configurator() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-foreground">
-                          {USD(o.price)}
+                          {USD(toNum(o.price))}
                         </span>
                         <button
                           onClick={() => toggleOption(o)}
@@ -1410,7 +1413,7 @@ const OptionCard = memo(function OptionCard({
       role="checkbox"
       aria-checked={isLocked ? true : isSelected}
       aria-disabled={isLocked}
-      aria-label={`${option.name}${option.price > 0 ? ` · $${option.price.toLocaleString()}` : ""}`}
+      aria-label={`${option.name}${toNum(option.price) > 0 ? ` · $${toNum(option.price).toLocaleString()}` : ""}`}
       onClick={handleActivate}
       onKeyDown={(e) => {
         if (!isLocked && (e.key === " " || e.key === "Enter")) {
@@ -1447,10 +1450,10 @@ const OptionCard = memo(function OptionCard({
           )}
         </div>
         <div className="text-right">
-          {option.price === 0 ? (
+          {toNum(option.price) === 0 ? (
             <span className="text-xs font-semibold text-primary">Included</span>
           ) : (
-            <span className="text-sm font-bold text-foreground">+{USD(option.price)}</span>
+            <span className="text-sm font-bold text-foreground">+{USD(toNum(option.price))}</span>
           )}
         </div>
       </div>

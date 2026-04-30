@@ -22,7 +22,7 @@ export async function seedDatabase() {
       tagline: "Compact Pallet Automation for Small VMCs",
       description:
         "Entry-level automated pallet system with 12 storage locations. Ideal for small vertical machining centers running high-mix, low-volume production. Compact footprint maximizes floor space while delivering unattended runtime.",
-      basePrice: 165000,
+      basePrice: "165000",
       specs: JSON.stringify({
         palletStations: 12,
         maxPartDiameter: '12"',
@@ -75,7 +75,7 @@ export async function seedDatabase() {
       tagline: "High-Density Compact Pallet System",
       description:
         "18-pallet automated system in a compact footprint. Perfect for shops needing maximum pallet density with smaller part sizes. Delivers extended unattended runtime for overnight and weekend production.",
-      basePrice: 175000,
+      basePrice: "175000",
       specs: JSON.stringify({
         palletStations: 18,
         maxPartDiameter: '8"',
@@ -128,7 +128,7 @@ export async function seedDatabase() {
       tagline: "Medium-Duty Pallet Automation – 16 Stations",
       description:
         'Mid-range automated pallet system supporting up to 55 lbs per pallet and 16" diameter parts. Built for small/medium vertical machining centers with higher payload requirements.',
-      basePrice: 189245,
+      basePrice: "189245",
       specs: JSON.stringify({
         palletStations: 16,
         maxPartDiameter: '16"',
@@ -188,7 +188,7 @@ export async function seedDatabase() {
       tagline: "High-Capacity Medium-Duty Pallet System",
       description:
         '24-pallet automated system for maximum unattended runtime. Supports 55 lbs per pallet with 12" part diameter. Ideal for high-mix production environments needing extended lights-out manufacturing.',
-      basePrice: 195845,
+      basePrice: "195845",
       specs: JSON.stringify({
         palletStations: 24,
         maxPartDiameter: '12"',
@@ -248,7 +248,7 @@ export async function seedDatabase() {
       tagline: "Dual-Machine Pallet Automation",
       description:
         "16-pallet system designed to serve two CNC machines simultaneously. Doubles your automation capacity without doubling floor space. Shares pallets between machines for maximum flexibility.",
-      basePrice: 225000,
+      basePrice: "225000",
       specs: JSON.stringify({
         palletStations: 16,
         maxPartDiameter: '16"',
@@ -307,7 +307,7 @@ export async function seedDatabase() {
       tagline: "Dual-Machine High-Capacity Automation",
       description:
         "24-pallet dual-machine system for maximum throughput. Automates two CNC machines with shared pallet storage for ultimate production flexibility and extended unattended runtime.",
-      basePrice: 245000,
+      basePrice: "245000",
       specs: JSON.stringify({
         palletStations: 24,
         maxPartDiameter: '12"',
@@ -365,7 +365,7 @@ export async function seedDatabase() {
       tagline: "Front-Load Large-Format Pallet System",
       description:
         '12-pallet front-loading system for larger parts up to 21.65" diameter and 16.50" height. Designed for medium/large vertical machining centers with front automation entry.',
-      basePrice: 235000,
+      basePrice: "235000",
       specs: JSON.stringify({
         palletStations: 12,
         maxPartDiameter: '21.65"',
@@ -422,7 +422,7 @@ export async function seedDatabase() {
       tagline: "Heavy-Duty Front-Load Pallet System",
       description:
         "Heavy-duty 12-pallet system with 180 lbs capacity per pallet. Features triple pull stud HD pallets and 100 KG robot payload for the most demanding large-part applications.",
-      basePrice: 275000,
+      basePrice: "275000",
       specs: JSON.stringify({
         palletStations: 12,
         maxPartDiameter: '21.65"',
@@ -480,7 +480,7 @@ export async function seedDatabase() {
       tagline: "Large-Format 20-Pallet Automation",
       description:
         '20-pallet automated system for medium/large vertical machining centers. Supports 20" diameter parts with 75 lbs capacity. Side-loading design integrates seamlessly with UMC-750 and similar machines.',
-      basePrice: 212082,
+      basePrice: "212082",
       specs: JSON.stringify({
         palletStations: 20,
         maxPartDiameter: '20"',
@@ -538,7 +538,7 @@ export async function seedDatabase() {
       tagline: "Heavy-Duty 20-Pallet Powerhouse",
       description:
         "The flagship heavy-duty system with 180 lbs capacity per pallet. Features 100 KG robot, HD triple-stud pallets, and 3x Schunk Vero-S clamping modules. Built for the most demanding production environments.",
-      basePrice: 277959,
+      basePrice: "277959",
       specs: JSON.stringify({
         palletStations: 20,
         maxPartDiameter: '20"',
@@ -598,7 +598,7 @@ export async function seedDatabase() {
       tagline: "AI-Powered Machine Tending – No Robot Programming",
       description:
         "Revolutionary AI-driven part loading system with Intrinsic Intelligence. Eliminates complex robot programming with AI-powered motion control. Features automatic gripper finger and air vise jaw changeovers for high-mix CNC automation.",
-      basePrice: 115900,
+      basePrice: "115900",
       specs: JSON.stringify({
         maxPartWidth: '4"',
         maxPartHeight: '4"',
@@ -673,7 +673,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "In-Machine CNC Zero-Point Interface",
       description:
         "Zero-Point Receiver with Schunk Vero-S clamping module(s). Integration to CNC Table. Controls Package with Clamp Confirmation Detection. Blow offs for contact surfaces.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -684,7 +684,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Rotary Union Trunnion Assembly",
       description:
         "Rotary union assembly for Haas Universal Machining Centers. Includes Rotary Union, Anti-Rotation Brackets, and misc. hardware.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -695,7 +695,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "CNC Side Auto-Door",
       description:
         "Auto-Door for Haas Machining Centers (2023+). On-site integration services to customer machine. Auto-Door integration for Trinity AX access to customer CNC.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -706,7 +706,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Trinity AC Retrofit Kit",
       description:
         "AC Retrofit Kit for Haas Machining Centers. Integration to retrofit electrical cabinet AC.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -734,7 +734,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       description: isHD
         ? `A3 HD Style Blank Pallet - No Hole Pattern. Heavy Duty – Triple Pull stud for 3 Schunk Vero-S Receivers. Approx. 14.75" Diameter x 1.5".`
         : `A3 Style Blank Pallet - No Hole Pattern. Standard duty – Single Pull stud for single Schunk Vero-S Receiver. Approx. 7.5" Diameter x 1.5".`,
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       quantity: palletCount,
@@ -745,7 +745,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       partNumber: "AX.P-EXTRA-4",
       name: "Additional Pallets (4-Pack)",
       description: "4 additional certified pallets for expanded production capacity.",
-      price: isHD ? 3200 : 1800,
+      price: isHD ? "3200" : "1800",
       isStandard: false,
       machineId,
     },
@@ -770,7 +770,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Dovetail Fixturing",
       description:
         "Precision dovetail fixtures for secure part holding. Ideal for complex geometries and multi-sided machining operations.",
-      price: 2950,
+      price: "2950",
       isStandard: false,
       machineId,
     },
@@ -780,7 +780,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Self Centering Vice w/ Soft Jaw",
       description:
         "Self-centering vice with machinable soft jaws. Quick-change capability for high-mix production environments.",
-      price: 3450,
+      price: "3450",
       isStandard: false,
       machineId,
     },
@@ -790,7 +790,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Dual Vice Setup",
       description:
         "Dual vice configuration for doubled part holding capacity per pallet. Run two parts simultaneously for increased throughput.",
-      price: 4950,
+      price: "4950",
       isStandard: false,
       machineId,
     },
@@ -800,7 +800,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Tombstone Fixtures",
       description:
         "Multi-sided tombstone fixtures for maximum part density. Machine multiple parts per cycle with 4-sided access.",
-      price: 5500,
+      price: "5500",
       isStandard: false,
       machineId,
     },
@@ -810,7 +810,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "3D Modular Work Holding",
       description:
         "Flexible 3D modular work holding system. Adaptable grid-based fixturing for infinite part configurations.",
-      price: 4200,
+      price: "4200",
       isStandard: false,
       machineId,
     },
@@ -820,7 +820,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Custom Fixturing",
       description:
         "Custom-engineered fixturing designed specifically for your parts. Trinity engineering team designs and manufactures to your specifications.",
-      price: 6500,
+      price: "6500",
       isStandard: false,
       machineId,
     },
@@ -845,7 +845,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "On-Site Installation & Integration",
       description:
         "Trinity technician on-site for installation / machine integration. Includes on-site time & travel expenses. Hands-on operator training. Normal business hours 8:00 AM – 5:00 PM.",
-      price: 6995,
+      price: "6995",
       isStandard: false,
       isRequired: true,
       machineId,
@@ -856,7 +856,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Extended Operator Training",
       description:
         "Additional days of on-site operator training beyond standard installation training. Ideal for shops with multiple shifts or new operators.",
-      price: 2500,
+      price: "2500",
       isStandard: false,
       machineId,
     },
@@ -881,7 +881,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Rotary Load Station Upgrade",
       description:
         "Rotating operator load station with single clamping module. Four manual index positions with operator handles for ergonomic part loading.",
-      price: 4500,
+      price: "4500",
       isStandard: false,
       machineId,
     },
@@ -891,7 +891,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Operator Handheld Vacuum",
       description:
         "Vacuum setup at operator station for cleaning of parts/equipment. Includes vacuum nozzle, hose, & receptacle. Functions on standard compressed air supply.",
-      price: 0,
+      price: "0",
       isStandard: true,
       machineId,
     },
@@ -901,7 +901,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "480 VAC Power Option",
       description:
         "480 VAC, 3 Phase, 20 AMPS power configuration. Alternative voltage option for shops with 480V electrical infrastructure.",
-      price: 1500,
+      price: "1500",
       isStandard: false,
       machineId,
     },
@@ -911,7 +911,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Work Cell LED Lighting Package",
       description:
         "High-intensity LED lighting for improved visibility inside the AX work cell. Critical for visual inspection and monitoring during operation.",
-      price: 1200,
+      price: "1200",
       isStandard: false,
       machineId,
     },
@@ -936,7 +936,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "1-Year Standard Warranty",
       description:
         "Trinity warranties purchased materials and workmanship to be free of defects for one (1) year from SAT run-off completion or production start.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -947,7 +947,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "2-Year Extended Warranty",
       description:
         "Extended warranty coverage for an additional year beyond the standard 1-year warranty. Includes parts and labor for manufacturing defects.",
-      price: 8500,
+      price: "8500",
       isStandard: false,
       machineId,
     },
@@ -957,7 +957,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
       name: "Annual Preventive Maintenance",
       description:
         "Scheduled annual preventive maintenance visit by Trinity-certified technician. Includes system inspection, calibration verification, and software updates.",
-      price: 4995,
+      price: "4995",
       isStandard: false,
       machineId,
     },
@@ -983,7 +983,7 @@ async function seedAXOptions(machineId: number, slug: string, allMachines: any[]
         name: "Second CNC Machine Integration Package",
         description:
           "Complete integration package for the second CNC machine. Includes auto-door, zero-point interface, safety integration, and commissioning.",
-        price: 18500,
+        price: "18500",
         isStandard: false,
         machineId,
       },
@@ -1011,7 +1011,7 @@ async function seedAiOptions(machineId: number) {
       name: "Base Quick Change Work Holding Package",
       description:
         "Air Vise Kit with Schunk pneumatic two jaw vise. Base plate, quick change jaw kit, aluminum soft jaws, and 2 sets of quick change robot gripper fingers.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -1022,7 +1022,7 @@ async function seedAiOptions(machineId: number) {
       name: "Quick Change Vise Jaw Kit",
       description:
         "Schunk Quick Change Jaws for air vise (1 Set). Aluminum Soft Jaws – Machinable for part geometry (1 Set).",
-      price: 1900,
+      price: "1900",
       isStandard: false,
       machineId,
     },
@@ -1032,7 +1032,7 @@ async function seedAiOptions(machineId: number) {
       name: "Air Vise Aluminum Soft Jaws",
       description:
         "Aluminum Soft Jaws – Machinable for part geometry (1 Set). For custom part profiles.",
-      price: 475,
+      price: "475",
       isStandard: false,
       machineId,
     },
@@ -1042,7 +1042,7 @@ async function seedAiOptions(machineId: number) {
       name: "Air Vise Steel Soft Jaws",
       description:
         "Steel Soft Jaws – Machinable for part geometry (1 Set). Replaces Schunk Quick Change Jaws + Aluminum Soft Jaws. Schunk WTR-A 160.",
-      price: 1050,
+      price: "1050",
       isStandard: false,
       machineId,
     },
@@ -1067,7 +1067,7 @@ async function seedAiOptions(machineId: number) {
       name: "Quick Change Robot Gripper Finger Kit",
       description:
         "Aluminum finger blanks – machinable for part geometry (1 Set). Schunk automatic quick-change jaws (1 Set). Schunk centering sleeves (1 set).",
-      price: 1450,
+      price: "1450",
       isStandard: false,
       machineId,
     },
@@ -1077,7 +1077,7 @@ async function seedAiOptions(machineId: number) {
       name: "Robot Gripper Finger Refill Kit",
       description:
         "Machinable finger kit for Quick Change system. Aluminum finger blanks (1 Set). Schunk centering sleeves (1 set). Re-uses existing quick-change jaws.",
-      price: 250,
+      price: "250",
       isStandard: false,
       machineId,
     },
@@ -1086,7 +1086,7 @@ async function seedAiOptions(machineId: number) {
       partNumber: "AI.GF-CS",
       name: "Gripper Finger Centering Sleeve Kit",
       description: "Schunk centering sleeves replacement set (1 set).",
-      price: 25,
+      price: "25",
       isStandard: false,
       machineId,
     },
@@ -1111,7 +1111,7 @@ async function seedAiOptions(machineId: number) {
       name: "Part Grid Plate",
       description:
         "Part grid for locating material for processing by robot. Grid size / product count based upon product geometry. One included with system, additional available.",
-      price: 395,
+      price: "395",
       isStandard: false,
       machineId,
     },
@@ -1121,7 +1121,7 @@ async function seedAiOptions(machineId: number) {
       name: "Application Engineering Support",
       description:
         "Application engineering support for part introduction / changeover. Soft jaw / finger design & machining support. Part introduction support for high mix environments.",
-      price: 2500,
+      price: "2500",
       isStandard: false,
       machineId,
     },
@@ -1146,7 +1146,7 @@ async function seedAiOptions(machineId: number) {
       name: "Advanced Ai Subscription (Year 1 Included)",
       description:
         "Advanced Trinity Ai feature set with Intrinsic Perception. Allows motion planning / part introduction via CAD upload. First year included with purchase.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -1157,7 +1157,7 @@ async function seedAiOptions(machineId: number) {
       name: "Standard Software Subscription (Year 2+)",
       description:
         "Standard annual software subscription. Due 12 months following installation. $4,995 annually recurring.",
-      price: 4995,
+      price: "4995",
       isStandard: false,
       machineId,
     },
@@ -1167,7 +1167,7 @@ async function seedAiOptions(machineId: number) {
       name: "Advanced Perception Subscription (Year 2+)",
       description:
         "Advanced Perception annual software subscription. Includes PM services and advanced perception features. $12,000 annually recurring.",
-      price: 12000,
+      price: "12000",
       isStandard: false,
       machineId,
     },
@@ -1192,7 +1192,7 @@ async function seedAiOptions(machineId: number) {
       name: "Certified On-Site Installation",
       description:
         "Trinity technician on-site for installation / machine integration. Includes installation, commissioning, and hands-on operator training. Normal business hours 8:00 AM – 5:00 PM.",
-      price: 6995,
+      price: "6995",
       isStandard: false,
       isRequired: true,
       machineId,
@@ -1218,7 +1218,7 @@ async function seedAiOptions(machineId: number) {
       name: "1-Year Standard Warranty",
       description:
         "Trinity warranties purchased materials and workmanship to be free of defects for one (1) year.",
-      price: 0,
+      price: "0",
       isStandard: true,
       isRequired: true,
       machineId,
@@ -1228,7 +1228,7 @@ async function seedAiOptions(machineId: number) {
       partNumber: "AI.W-2YR",
       name: "2-Year Extended Warranty",
       description: "Extended warranty for additional peace of mind beyond the standard coverage.",
-      price: 6500,
+      price: "6500",
       isStandard: false,
       machineId,
     },

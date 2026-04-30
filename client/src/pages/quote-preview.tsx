@@ -177,12 +177,13 @@ function makeDemoQuote(machineSlug: string): Quote {
     customerCompany: "Selway Machine Tool",
     customerPhone: "(510) 475-4712",
     selectedOptions: JSON.stringify(options),
-    basePrice: info.base,
-    optionsTotal: installPrice,
-    totalPrice,
+    basePrice: String(info.base),
+    optionsTotal: String(installPrice),
+    totalPrice: String(totalPrice),
     financingParams: JSON.stringify(fp),
     roiParams: JSON.stringify(rp),
-    createdAt: today.toISOString(),
+    createdAt: today,
+    updatedAt: today,
   } as Quote;
 }
 
