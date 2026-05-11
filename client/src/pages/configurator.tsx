@@ -84,6 +84,21 @@ const CATEGORY_ICONS: Record<string, any> = {
   software: Cpu,
 };
 
+// Per Mike's PDFs (May 7 2026): clearer labels + subtitles on the Details box.
+const SPEC_META: Record<string, { label?: string; subtitle?: string }> = {
+  palletStations: { label: "Pallet Storage Locations" },
+  maxPartDiameter: {
+    subtitle: "Work holding + work piece on top of the pallet",
+  },
+  maxPartHeight: {
+    subtitle: "Work holding + work piece on top of the pallet",
+  },
+  maxWeight: {
+    subtitle: "Work holding + work piece on top of the pallet",
+  },
+  rotaryLoad: { label: "Operator Rotary Load Station" },
+};
+
 const toNum = (v: string | number | null | undefined): number =>
   typeof v === "number" ? v : v == null ? 0 : Number(v) || 0;
 
@@ -266,11 +281,28 @@ export default function Configurator() {
           delete next[option.id];
         } else {
           next[option.id] = option.quantity && option.quantity > 0 ? option.quantity : 1;
+          // Mutual exclusion: 2-Year Extended Warranty + PM and Annual PM cannot
+          // coexist. Per Mike's PDF p.6: Annual PM is "only available if they do
+          // not select the 2-year extended warranty".
+          const MUTEX_PAIRS: Record<string, string> = {
+            "AX.W-2YR": "AX.PM-ANN",
+            "AX.PM-ANN": "AX.W-2YR",
+          };
+          const counterpart = option.partNumber ? MUTEX_PAIRS[option.partNumber] : undefined;
+          if (counterpart && categories) {
+            for (const cat of categories) {
+              for (const o of cat.options) {
+                if (o.partNumber === counterpart && next[o.id]) {
+                  delete next[o.id];
+                }
+              }
+            }
+          }
         }
         return next;
       });
     },
-    [isLocked],
+    [isLocked, categories],
   );
 
   const setOptionQty = useCallback(
@@ -616,14 +648,25 @@ export default function Configurator() {
               {Object.entries(parsedMachine.specs)
                 .filter(([k]) => !["robotAxes", "aiPowered", "softwareSubscription"].includes(k))
                 .slice(0, 8)
-                .map(([key, value]) => (
-                  <div key={key} className="rounded-lg border border-border/50 bg-card p-3">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                      {key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                    </p>
-                    <p className="text-base font-semibold text-foreground">{String(value)}</p>
-                  </div>
-                ))}
+                .map(([key, value]) => {
+                  const meta = SPEC_META[key];
+                  const label =
+                    meta?.label ??
+                    key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+                  return (
+                    <div key={key} className="rounded-lg border border-border/50 bg-card p-3">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                        {label}
+                      </p>
+                      <p className="text-base font-semibold text-foreground">{String(value)}</p>
+                      {meta?.subtitle && (
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                          {meta.subtitle}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
 
             <Card className="p-4 bg-card/50">
@@ -780,17 +823,10 @@ export default function Configurator() {
             );
           })}
 
-          {/* Compatible machines */}
-          <div className="mb-8">
-            <h2 className="text-base font-bold text-foreground mb-4">Compatible CNC Machines</h2>
-            <div className="flex flex-wrap gap-2">
-              {parsedMachine.compatibleMachines.map((m, i) => (
-                <Badge key={i} variant="outline" className="text-xs font-normal">
-                  {m}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          {/* Compatible CNC list intentionally removed — per Mike's PDF p.7
+              "This will be selected above" — the dropdown in System Setup is
+              the canonical selector; the redundant tag list at the bottom
+              would just confuse users. */}
         </main>
 
         {/* Right sidebar — quote summary */}
