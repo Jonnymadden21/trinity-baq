@@ -148,7 +148,7 @@ export default function Configurator() {
   });
 
   const { data: categories, isLoading: optionsLoading } = useQuery<CategoryWithOptions[]>({
-    queryKey: ["/api/machines", machine?.id, "options"],
+    queryKey: ["/api/machines", machine?.slug, "options"],
     enabled: !!machine,
     staleTime: 5 * 60_000,
   });
