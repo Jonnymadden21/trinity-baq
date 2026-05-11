@@ -640,27 +640,36 @@ export async function seedDatabase() {
 
   const allMachines = await db.select().from(machines);
 
-  // For each machine, create option categories and options
+  // For each machine, create option categories and options.
+  // All AX machines now use the same standardized template (per user, May 10 2026).
+  // ax2-16 and ax2-24 additionally get base-price + description overrides per Mike's PDF.
+  // Ai Part Loader keeps its own (different product family).
   for (const machine of allMachines) {
-    if (machine.slug === "ax2-16" || machine.slug === "ax2-24") {
-      // Per Mike's PDFs (May 7, 2026) — distinct catalog from other AX machines
+    if (machine.series === "AX") {
       await seedAX2Options(machine.id, machine.slug, allMachines);
-    } else if (machine.series === "AX") {
-      await seedAXOptions(machine.id, machine.slug, allMachines);
     } else if (machine.series === "Ai") {
       await seedAiOptions(machine.id);
     }
   }
+  // Legacy seedAXOptions kept in this file (unused by the dispatcher) for
+  // reference / quick rollback if Mike wants to revert any machine.
+  void seedAXOptions;
 }
 
-// Mike's per-machine PDFs cover only ax2-16 and ax2-24 today. Other AX
-// machines stay on the legacy seedAXOptions until their per-machine spec lands.
+// Standard AX-machine catalog. Used for ALL AX machines.
+// For ax2-16 / ax2-24 it ALSO overrides the machine row (price/desc/features) per Mike's PDFs.
+// For other AX machines we keep their native basePrice/description/features and just
+// apply the small spec/CNC-list updates that are universal (rotaryLoad="Standard", new
+// 25-CNC list, voltage callout for 480 VAC).
 async function seedAX2Options(machineId: number, slug: string, allMachines: any[]) {
-  const palletDefault = slug === "ax2-24" ? 24 : 16;
-  // The seed runner first re-INSERTs the machine row above with the original
-  // tagline/specs — so we read the *fresh* row to get the same data the prod
-  // migration writes. (Compatible CNCs etc. live in shared/schema row.)
-  void allMachines.find((m) => m.id === machineId);
+  const isAX2Mike = slug === "ax2-16" || slug === "ax2-24";
+  const isHD = slug.endsWith("-hd");
+  const isDuo = slug.endsWith("-duo");
+  const machineRow = allMachines.find((m) => m.id === machineId);
+  const currentSpecs = machineRow ? JSON.parse(machineRow.specs) : {};
+  const palletDefault = isAX2Mike
+    ? (slug === "ax2-24" ? 24 : 16)
+    : (Number(currentSpecs.palletStations) || 16);
 
   const ax2_compat = JSON.stringify([
     "Haas DM1 / DT1","Haas DM2 / DT2","Haas UMC-350 HD","Haas UMC-400","Haas UMC-500","Haas UMC-750",
@@ -685,54 +694,91 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
   // AC Retrofit: only UMC-400/500/750, MANDATORY when CNC matches.
   const acRetrofitCNCs = JSON.stringify(["Haas UMC-400","Haas UMC-500","Haas UMC-750"]);
 
-  // Update the machine row to match the prod migration (price/desc/features).
-  await db
-    .update(machines)
-    .set({
-      basePrice: "170500",
-      tagline: slug === "ax2-24"
-        ? "Medium-Duty Side-Load Pallet Automation – 24 Stations"
-        : "Medium-Duty Side-Load Pallet Automation – 16 Stations",
-      description:
-        "Medium-sized side-load automated pallet system designed for small and medium vertical machining centers. The AX2 is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 55 lbs. per pallet and available 16- or 24-pallet storage configurations, the AX2 accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently.",
-      compatibleMachines: ax2_compat,
-      features: JSON.stringify([
-        "Six Axis Industrial Robot – 35 KG Max Payload",
-        `${palletDefault} Standard Pallet Storage Locations`,
-        `${slug === "ax2-24" ? '12"' : '16"'} max part size (for work holding + work piece on top of pallet)`,
-        '9" max part height (for work holding + work piece on top of pallet)',
-        "55 lbs. max weight (for work holding + work piece on top of pallet)",
-        "Standard Schunk Single Pallet Gripper – 55 lbs. Capacity",
-        '15" Operator Control Touch Screen',
-        "Rotary Operator Load Station",
-        "Trinity AX Pallet Management Software",
-        "Operator Handheld Vacuum",
-        "Fully Integrated Safety Enclosure",
-        "Active Drying Station",
-        "In-Machine CNC Zero-Point Interface",
-        "Shipment Preparation & Crating",
-      ]),
-      specs: JSON.stringify({
-        palletStations: palletDefault,
-        maxPartDiameter: slug === "ax2-24" ? '12"' : '16"',
-        maxPartHeight: '9"',
-        maxWeight: "55 lbs.",
-        palletDiameter: '7.5"',
-        palletThickness: '1.5"',
-        zeroPointPullStuds: 1,
-        rotaryLoad: "Standard",
-        activeDryingStation: "Included",
-        loadDirection: "Side",
-        axWidth: '76"',
-        axDepth: '107"',
-        axHeight: '115"',
-        voltage: "220 VAC, 3 Phase, 40 AMPS (480 VAC available)",
-        secondMachine: "N/A",
-        robotPayload: "35 KG",
-        robotAxes: 6,
-      }),
-    })
-    .where(eq(machines.id, machineId));
+  if (isAX2Mike) {
+    // Full machine-row override per Mike's AX2-16 / AX2-24 PDFs.
+    await db
+      .update(machines)
+      .set({
+        basePrice: "170500",
+        tagline: slug === "ax2-24"
+          ? "Medium-Duty Side-Load Pallet Automation – 24 Stations"
+          : "Medium-Duty Side-Load Pallet Automation – 16 Stations",
+        description:
+          "Medium-sized side-load automated pallet system designed for small and medium vertical machining centers. The AX2 is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 55 lbs. per pallet and available 16- or 24-pallet storage configurations, the AX2 accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently.",
+        compatibleMachines: ax2_compat,
+        features: JSON.stringify([
+          "Six Axis Industrial Robot – 35 KG Max Payload",
+          `${palletDefault} Standard Pallet Storage Locations`,
+          `${slug === "ax2-24" ? '12"' : '16"'} max part size (for work holding + work piece on top of pallet)`,
+          '9" max part height (for work holding + work piece on top of pallet)',
+          "55 lbs. max weight (for work holding + work piece on top of pallet)",
+          "Standard Schunk Single Pallet Gripper – 55 lbs. Capacity",
+          '15" Operator Control Touch Screen',
+          "Rotary Operator Load Station",
+          "Trinity AX Pallet Management Software",
+          "Operator Handheld Vacuum",
+          "Fully Integrated Safety Enclosure",
+          "Active Drying Station",
+          "In-Machine CNC Zero-Point Interface",
+          "Shipment Preparation & Crating",
+        ]),
+        specs: JSON.stringify({
+          palletStations: palletDefault,
+          maxPartDiameter: slug === "ax2-24" ? '12"' : '16"',
+          maxPartHeight: '9"',
+          maxWeight: "55 lbs.",
+          palletDiameter: '7.5"',
+          palletThickness: '1.5"',
+          zeroPointPullStuds: 1,
+          rotaryLoad: "Standard",
+          activeDryingStation: "Included",
+          loadDirection: "Side",
+          axWidth: '76"',
+          axDepth: '107"',
+          axHeight: '115"',
+          voltage: "220 VAC, 3 Phase, 40 AMPS (480 VAC available)",
+          secondMachine: "N/A",
+          robotPayload: "35 KG",
+          robotAxes: 6,
+        }),
+      })
+      .where(eq(machines.id, machineId));
+  } else {
+    // For other AX machines: keep native basePrice/description/features. Just apply
+    // the universal updates: rotaryLoad="Standard", voltage callout, and the new 25-CNC list.
+    // Also clean deprecated items from the features array and ensure the now-standard
+    // ones are present.
+    const cleanedFeatures = (JSON.parse(machineRow.features) as string[])
+      .filter((f) => ![
+        "Equipped with OEM 220 VAC, 3 Phase Transformer",
+        "Dual Check Safety Software",
+        "Rotary Union Trunnion Assembly",
+        "CNC Side Auto-Door",
+        "Trinity AC Retrofit Kit",
+      ].includes(f))
+      .map((f) => (f === "Active Drying Station with Air Blow Off" ? "Active Drying Station" : f));
+    if (!cleanedFeatures.includes("Rotary Operator Load Station")) {
+      cleanedFeatures.push("Rotary Operator Load Station");
+    }
+    if (!cleanedFeatures.includes("Operator Handheld Vacuum")) {
+      cleanedFeatures.push("Operator Handheld Vacuum");
+    }
+
+    const newSpecs = {
+      ...currentSpecs,
+      rotaryLoad: "Standard",
+      voltage: "220 VAC, 3 Phase, 40 AMPS (480 VAC available)",
+    };
+
+    await db
+      .update(machines)
+      .set({
+        compatibleMachines: ax2_compat,
+        features: JSON.stringify(cleanedFeatures),
+        specs: JSON.stringify(newSpecs),
+      })
+      .where(eq(machines.id, machineId));
+  }
 
   // Pallets
   const cat1 = await db
@@ -742,10 +788,11 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
     .then((r) => r[0]);
   await db.insert(options).values({
     categoryId: cat1.id,
-    partNumber: "AX.A157",
-    name: "Trinity Certified Pallets",
-    description:
-      `A3 Style Blank Pallet - No Hole Pattern. Standard duty – Single Pull stud for single Schunk Vero-S Receiver. Approx. 7.5" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $825 each.`,
+    partNumber: isHD ? "AX.A081" : "AX.A157",
+    name: isHD ? "Trinity HD Certified Pallets" : "Trinity Certified Pallets",
+    description: isHD
+      ? `A3 HD Style Blank Pallet - No Hole Pattern. Heavy Duty – Triple Pull stud for 3 Schunk Vero-S Receivers. Approx. 14.75" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $825 each.`
+      : `A3 Style Blank Pallet - No Hole Pattern. Standard duty – Single Pull stud for single Schunk Vero-S Receiver. Approx. 7.5" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $825 each.`,
     price: "825",
     isStandard: true,
     isRequired: true,
@@ -828,6 +875,25 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
     { categoryId: cat5.id, partNumber: "AX.W-2YR", name: "2-Year Extended Warranty + PM", description: "Extended warranty for an additional year beyond the standard 1-year warranty. Includes parts and labor for manufacturing defects, and Preventive Maintenance visit at the start of year 2.", price: "8995", machineId },
     { categoryId: cat5.id, partNumber: "AX.PM-ANN", name: "Annual Preventive Maintenance", description: "Scheduled annual preventive maintenance visit by Trinity-certified technician. Recommended at the completion of 1 year of service. Only available if 2-Year Extended Warranty + PM is not selected.", price: "2995", machineId },
   ]);
+
+  // Duo machines get a 6th category for the second-CNC integration package.
+  if (isDuo) {
+    const cat6 = await db
+      .insert(optionCategories)
+      .values({ slug: "second-machine", name: "Second Machine Integration", sortOrder: 6, machineId })
+      .returning()
+      .then((r) => r[0]);
+    await db.insert(options).values({
+      categoryId: cat6.id,
+      partNumber: "AX.DUO-INT",
+      name: "Second CNC Machine Integration Package",
+      description:
+        "Complete integration package for the second CNC machine. Includes auto-door, zero-point interface, safety integration, and commissioning.",
+      price: "18500",
+      isStandard: false,
+      machineId,
+    });
+  }
 }
 
 async function seedAXOptions(machineId: number, slug: string, allMachines: any[]) {
