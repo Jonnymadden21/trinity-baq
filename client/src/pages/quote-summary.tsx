@@ -528,18 +528,18 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
               <>
                 <h2 className="section-title">Return on Investment</h2>
                 <div className="roi-kpis">
-                  <KPI label="Net Annual Benefit" value={m0(Math.round(rp.netBenefit))} green />
+                  <KPI label="Net Annual Benefit" value={m0(Math.round(rp.netBenefit ?? 0))} green />
                   <KPI
                     label="Payback Period"
                     value={
-                      rp.paybackMonths > 0 && rp.paybackMonths < 120
-                        ? `${rp.paybackMonths.toFixed(1)} mo`
+                      (rp.paybackMonths ?? 0) > 0 && (rp.paybackMonths ?? 0) < 120
+                        ? `${(rp.paybackMonths ?? 0).toFixed(1)} mo`
                         : "120+"
                     }
                     green
                   />
-                  <KPI label="Year 5 ROI" value={`${Math.round(rp.year5ROI)}%`} green />
-                  <KPI label="Capacity" value={`${rp.capacityMult.toFixed(1)}x`} />
+                  <KPI label="Year 5 ROI" value={`${Math.round(rp.year5ROI ?? 0)}%`} green />
+                  <KPI label="Capacity" value={`${(rp.capacityMult ?? 0).toFixed(1)}x`} />
                 </div>
 
                 <div className="roi-row">

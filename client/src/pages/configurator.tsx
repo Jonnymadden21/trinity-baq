@@ -131,7 +131,12 @@ export default function Configurator() {
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", company: "", phone: "" });
   // CNC + voltage step (per Mike's PDF: required at top of configurator)
-  const [cncMachineModel, setCncMachineModel] = useState<string>("");
+  // cncSelectValue: the dropdown value — either a preset CNC string or the literal "__other__".
+  // cncOtherText: free-text the user types when "Other" is selected.
+  // The effective cncMachineModel is derived from these two below.
+  const [cncSelectValue, setCncSelectValue] = useState<string>("");
+  const [cncOtherText, setCncOtherText] = useState<string>("");
+  const cncMachineModel = cncSelectValue === "__other__" ? cncOtherText.trim() : cncSelectValue;
   const [cncYear, setCncYear] = useState<string>("");
   const [cncSerialNumber, setCncSerialNumber] = useState<string>("");
   const [voltage, setVoltage] = useState<"220 VAC" | "480 VAC">("220 VAC");
@@ -474,12 +479,18 @@ export default function Configurator() {
           selectedPayload.push({ id: opt.id });
         }
       }
+      // Send BOTH inputs and computed values so quote-summary can render
+      // payback/capacity/year-1-ROI etc. without recomputing.
       const financingParamsForServer = financing
         ? {
-            downPayment: Number(financingCalc.downPayment),
+            downPaymentPct: Number(financing.downPaymentPct),
             termMonths: Number(financing.termMonths),
+            interestRate: Number(financing.interestRate),
             apr: Number(financing.interestRate),
+            downPayment: Number(financingCalc.downPayment),
+            financedAmount: Number(financingCalc.principal),
             monthlyPayment: Number(financingCalc.monthlyPayment),
+            totalCost: Number(financingCalc.totalCost),
           }
         : null;
       const roiParamsForServer = {
@@ -493,6 +504,21 @@ export default function Configurator() {
         mannedUtilAfter: roi.mannedUtilAfter,
         unmannedUtilBefore: roi.unmannedUtilBefore,
         unmannedUtilAfter: roi.unmannedUtilAfter,
+        // Computed (for quote-summary rendering)
+        mannedGainHrs: Number(roiCalc.mannedGainHrs),
+        unmannedGainHrs: Number(roiCalc.unmannedGainHrs),
+        mannedGainRev: Number(roiCalc.mannedGainRev),
+        unmannedGainRev: Number(roiCalc.unmannedGainRev),
+        totalGainRev: Number(roiCalc.totalGainRev),
+        laborSaving: Number(roiCalc.laborSaving),
+        netBenefit: Number(roiCalc.netBenefit),
+        paybackMonths: Number(roiCalc.paybackMonths),
+        year1ROI: Number(roiCalc.year1ROI),
+        year3ROI: Number(roiCalc.year3ROI),
+        year5ROI: Number(roiCalc.year5ROI),
+        capacityMult: Number(roiCalc.capacityMult),
+        taxSavings: Number(roiCalc.taxSavings),
+        effectiveCost: Number(roiCalc.effectiveCost),
       };
       const cncYearNum = cncYear.trim() ? Number(cncYear) : null;
       const res = await apiRequest("POST", "/api/quotes", {
@@ -704,7 +730,7 @@ export default function Configurator() {
                 <Label className="text-sm font-semibold mb-1.5 block">
                   CNC Machine Model <span className="text-destructive">*</span>
                 </Label>
-                <Select value={cncMachineModel} onValueChange={setCncMachineModel}>
+                <Select value={cncSelectValue} onValueChange={setCncSelectValue}>
                   <SelectTrigger className="text-base h-11" data-testid="cnc-model-select">
                     <SelectValue placeholder="Select your CNC machine model" />
                   </SelectTrigger>
@@ -714,11 +740,34 @@ export default function Configurator() {
                         {m}
                       </SelectItem>
                     ))}
+                    <SelectItem value="__other__" className="text-base font-semibold border-t mt-1 pt-2">
+                      Other (specify below)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Selecting a CNC enables compatible upgrades and applies any required add-ons (e.g., AC retrofit on UMC-400/500/750).
-                </p>
+                {cncSelectValue === "__other__" && (
+                  <div className="mt-2">
+                    <Input
+                      autoFocus
+                      placeholder="Enter your CNC machine make + model"
+                      value={cncOtherText}
+                      onChange={(e) => setCncOtherText(e.target.value)}
+                      maxLength={120}
+                      className="text-base h-11"
+                      data-testid="cnc-model-other-input"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Note: Trinity Auto-Door and AC Retrofit availability is determined by
+                      specific supported models — they won't auto-apply for &ldquo;Other&rdquo;.
+                      Your sales rep will confirm compatibility.
+                    </p>
+                  </div>
+                )}
+                {cncSelectValue !== "__other__" && (
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Selecting a CNC enables compatible upgrades and applies any required add-ons (e.g., AC retrofit on UMC-400/500/750).
+                  </p>
+                )}
               </div>
 
               <div>

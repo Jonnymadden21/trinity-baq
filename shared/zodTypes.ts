@@ -1,13 +1,19 @@
 import { z } from "zod";
 
+// Both schemas use .passthrough() so the client can include computed/derived
+// values (downPaymentPct, financedAmount, totalCost, capacityMult, paybackMonths,
+// year1/3/5ROI, mannedGainHrs, etc.) without the server rejecting them. The
+// computed fields are surfaced on the quote-summary page; server only validates
+// the core inputs.
 export const FinancingParamsSchema = z
   .object({
     downPayment: z.number().nonnegative(),
     termMonths: z.number().int().positive(),
-    apr: z.number().nonnegative(),
+    apr: z.number().nonnegative().optional(),
+    interestRate: z.number().nonnegative().optional(),
     monthlyPayment: z.number().nonnegative().optional(),
   })
-  .strict();
+  .passthrough();
 export type FinancingParams = z.infer<typeof FinancingParamsSchema>;
 
 export const RoiParamsSchema = z
@@ -23,5 +29,5 @@ export const RoiParamsSchema = z
     unmannedUtilBefore: z.number().min(0).max(100),
     unmannedUtilAfter: z.number().min(0).max(100),
   })
-  .strict();
+  .passthrough();
 export type RoiParams = z.infer<typeof RoiParamsSchema>;
