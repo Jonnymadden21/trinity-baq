@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "./_db";
-import { machines, options, quotes } from "../shared/schema";
-import { env } from "./_lib/env";
-import { withErrorHandling, methodNotAllowed, HttpError } from "./_lib/handler";
-import { isAllowedOrigin } from "./_lib/origin";
-import { sendQuoteEmail } from "./_lib/email";
-import { validateQuotePayload, generateQuoteNumber } from "./_lib/quotePayload";
-import { computeQuoteTotals } from "../server/pricing";
+import { db } from "./_db.js";
+import { machines, options, quotes } from "../shared/schema.js";
+import { env } from "./_lib/env.js";
+import { withErrorHandling, methodNotAllowed, HttpError } from "./_lib/handler.js";
+import { isAllowedOrigin } from "./_lib/origin.js";
+import { sendQuoteEmail } from "./_lib/email.js";
+import { validateQuotePayload, generateQuoteNumber } from "./_lib/quotePayload.js";
+import { computeQuoteTotals } from "../server/pricing.js";
 
 function getClientIp(req: VercelRequest): string {
   const xff = req.headers["x-forwarded-for"];

@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { eq } from "drizzle-orm";
-import { db } from "../_db";
-import { machines } from "../../shared/schema";
-import { withErrorHandling, methodNotAllowed, HttpError } from "../_lib/handler";
+import { db } from "../_db.js";
+import { machines } from "../../shared/schema.js";
+import { withErrorHandling, methodNotAllowed, HttpError } from "../_lib/handler.js";
 
 const SLUG_RE = /^[a-z0-9-]{1,64}$/;
 

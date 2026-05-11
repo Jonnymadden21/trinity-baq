@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FinancingParamsSchema, RoiParamsSchema } from "../../shared/zodTypes";
+import { FinancingParamsSchema, RoiParamsSchema } from "../../shared/zodTypes.js";
 
 export const QuotePayloadSchema = z.object({
   machineId: z.number().int().positive(),
