@@ -752,6 +752,7 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
       .filter((f) => ![
         "Equipped with OEM 220 VAC, 3 Phase Transformer",
         "Dual Check Safety Software",
+        "Dual Check Safety Robot Software", // ax5-20 / ax5-20-hd variant wording
         "Rotary Union Trunnion Assembly",
         "CNC Side Auto-Door",
         "Trinity AC Retrofit Kit",
