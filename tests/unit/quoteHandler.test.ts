@@ -12,7 +12,6 @@ describe("validateQuotePayload", () => {
     financingParams: null,
     roiParams: null,
     website: "",
-    turnstileToken: "tok",
   };
 
   it("accepts a valid payload", () => {

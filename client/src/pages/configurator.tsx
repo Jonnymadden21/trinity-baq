@@ -57,7 +57,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { Machine, Option, OptionCategory } from "@shared/schema";
-import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 type CategoryWithOptions = OptionCategory & { options: Option[] };
 
@@ -121,7 +120,6 @@ export default function Configurator() {
     unmannedUtilBefore: 0,
     unmannedUtilAfter: 70,
   });
-  const [turnstileToken, setTurnstileToken] = useState<string>("");
   const [honeypot, setHoneypot] = useState<string>("");
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const defaultsAppliedRef = useRef(false);
@@ -330,7 +328,6 @@ export default function Configurator() {
         financingParams: financingParamsForServer,
         roiParams: roiParamsForServer,
         website: honeypot,
-        turnstileToken,
       });
       return res.json();
     },
@@ -1361,8 +1358,6 @@ export default function Configurator() {
                   style={{ position: "absolute", left: "-10000px", width: "1px", height: "1px", opacity: 0 }}
                 />
 
-                <TurnstileWidget onToken={setTurnstileToken} onError={() => setTurnstileToken("")} />
-
                 <div className="flex gap-3">
                   <Button
                     type="button"
@@ -1375,7 +1370,7 @@ export default function Configurator() {
                   <Button
                     type="submit"
                     className="flex-1 bg-primary text-primary-foreground font-bold"
-                    disabled={quoteMutation.isPending || !turnstileToken}
+                    disabled={quoteMutation.isPending}
                   >
                     {quoteMutation.isPending ? "Generating…" : "Generate Quote & PDF"}
                   </Button>

@@ -11,7 +11,6 @@ export const QuotePayloadSchema = z.object({
   financingParams: FinancingParamsSchema.nullable().optional(),
   roiParams: RoiParamsSchema.nullable().optional(),
   website: z.string(), // honeypot, expected empty
-  turnstileToken: z.string().min(1),
 });
 
 export type QuotePayload = z.infer<typeof QuotePayloadSchema>;

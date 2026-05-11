@@ -5,8 +5,6 @@ import { machines, options, quotes } from "../shared/schema";
 import { env } from "./_lib/env";
 import { withErrorHandling, methodNotAllowed, HttpError } from "./_lib/handler";
 import { isAllowedOrigin } from "./_lib/origin";
-import { verifyTurnstile } from "./_lib/turnstile";
-import { checkRateLimit, getRateLimitClient } from "./_lib/rateLimit";
 import { sendQuoteEmail } from "./_lib/email";
 import { validateQuotePayload, generateQuoteNumber } from "./_lib/quotePayload";
 import { computeQuoteTotals } from "../server/pricing";
@@ -43,24 +41,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  // 4. Turnstile
-  const ip = getClientIp(req);
-  const turnstileOk = await verifyTurnstile(env.TURNSTILE_SECRET_KEY, p.turnstileToken, ip);
-  if (!turnstileOk) throw new HttpError(400, "Verification failed");
-
-  // 5. Rate limit
-  const rateClient = getRateLimitClient();
-  const rl = await checkRateLimit(rateClient, ip, 5, 60);
-  if (!rl.allowed) {
-    res.setHeader("Retry-After", "60");
-    throw new HttpError(429, "Too many requests");
-  }
-
-  // 6. Look up machine
+  // 4. Look up machine
   const [machine] = await db.select().from(machines).where(eq(machines.id, p.machineId)).limit(1);
   if (!machine) throw new HttpError(400, "Invalid input");
 
-  // 7. Look up + validate every option
+  // 5. Look up + validate every option
   const opts =
     p.selectedOptionIds.length > 0
       ? await db.select().from(options).where(inArray(options.id, p.selectedOptionIds))
@@ -70,7 +55,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (o.machineId !== machine.id) throw new HttpError(400, "Invalid input");
   }
 
-  // 8. Recompute totals on the server (coerce doublePrecision → string for the pricing module)
+  // 6. Recompute totals on the server (coerce doublePrecision → string for the pricing module)
   const totals = computeQuoteTotals({
     machine: { id: machine.id, basePrice: String(machine.basePrice) },
     allOptions: opts.map((o) => ({
@@ -81,7 +66,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     selectedOptionIds: p.selectedOptionIds,
   });
 
-  // 9. Insert (numeric columns accept string values; createdAt/updatedAt default server-side)
+  // 7. Insert (numeric columns accept string values; createdAt/updatedAt default server-side)
   const quoteNumber = generateQuoteNumber();
   const [inserted] = await db
     .insert(quotes)
@@ -109,7 +94,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     })
     .returning();
 
-  // 10. Fire-and-forget email (do not block the HTTP response)
+  // 8. Fire-and-forget email (do not block the HTTP response)
   void sendQuoteEmail({
     quoteNumber: inserted.quoteNumber,
     machineName: inserted.machineName,
@@ -121,6 +106,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     summaryUrl: `https://trinitybaq.com/quote/${inserted.quoteNumber}`,
   }).catch((err) => console.error("Email task error:", err));
 
-  // 11. Respond
+  // 9. Respond
   res.status(201).json({ quoteNumber: inserted.quoteNumber });
 });
