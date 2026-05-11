@@ -39,6 +39,13 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   Sun,
   Moon,
@@ -55,6 +62,10 @@ import {
   Package,
   Calculator,
   TrendingUp,
+  Plus,
+  Minus,
+  Lock,
+  Cog,
 } from "lucide-react";
 import type { Machine, Option, OptionCategory } from "@shared/schema";
 
@@ -99,10 +110,16 @@ export default function Configurator() {
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [selectedOptions, setSelectedOptions] = useState<Record<number, boolean>>({});
+  // optionQuantities: id → qty. qty>0 = selected with that quantity. Missing or 0 = not selected.
+  const [optionQuantities, setOptionQuantities] = useState<Record<number, number>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", company: "", phone: "" });
+  // CNC + voltage step (per Mike's PDF: required at top of configurator)
+  const [cncMachineModel, setCncMachineModel] = useState<string>("");
+  const [cncYear, setCncYear] = useState<string>("");
+  const [cncSerialNumber, setCncSerialNumber] = useState<string>("");
+  const [voltage, setVoltage] = useState<"220 VAC" | "480 VAC">("220 VAC");
   const [financing, setFinancing] = useState({
     downPaymentPct: 10,
     termMonths: 60,
@@ -139,13 +156,15 @@ export default function Configurator() {
   // --- Apply standard/required defaults ONCE (effect, not memo) ---
   useEffect(() => {
     if (!categories || defaultsAppliedRef.current) return;
-    const defaults: Record<number, boolean> = {};
+    const defaults: Record<number, number> = {};
     for (const cat of categories) {
       for (const opt of cat.options) {
-        if (opt.isStandard || opt.isRequired) defaults[opt.id] = true;
+        if (opt.isStandard || opt.isRequired) {
+          defaults[opt.id] = opt.quantity ?? 1;
+        }
       }
     }
-    setSelectedOptions((prev) => ({ ...defaults, ...prev }));
+    setOptionQuantities((prev) => ({ ...defaults, ...prev }));
     defaultsAppliedRef.current = true;
   }, [categories]);
 
@@ -164,27 +183,144 @@ export default function Configurator() {
     return { optionById: optionMap, categoryBySlug: catMap };
   }, [categories]);
 
-  // --- Toggle handler (stable) ---
-  const toggleOption = useCallback((option: Option) => {
-    if (option.isStandard && option.isRequired) return;
-    setSelectedOptions((prev) => ({ ...prev, [option.id]: !prev[option.id] }));
-  }, []);
+  // --- Helpers: parse compatibleMachineModels JSON for an option ---
+  const isOptionVisibleForCnc = useCallback(
+    (opt: Option) => {
+      if (!opt.compatibleMachineModels) return true; // no restriction → always visible
+      if (!cncMachineModel) return false; // restricted but no CNC chosen → hide
+      try {
+        const list = JSON.parse(opt.compatibleMachineModels) as string[];
+        return list.includes(cncMachineModel);
+      } catch {
+        return false;
+      }
+    },
+    [cncMachineModel],
+  );
 
-  // --- Pricing math ---
+  // --- Auto-include required-when-compatible options when CNC matches ---
+  // Compute outside of setState to satisfy "no setState in effect" lint rule.
+  useEffect(() => {
+    if (!categories) return;
+    const cncRequiredAdds: Record<number, number> = {};
+    const cncRequiredRemoves: number[] = [];
+    for (const cat of categories) {
+      for (const opt of cat.options) {
+        if (!opt.requiredWhenCompatible || !opt.compatibleMachineModels) continue;
+        let list: string[];
+        try {
+          list = JSON.parse(opt.compatibleMachineModels) as string[];
+        } catch {
+          continue;
+        }
+        const matches = !!cncMachineModel && list.includes(cncMachineModel);
+        if (matches) {
+          cncRequiredAdds[opt.id] = opt.quantity ?? 1;
+        } else if (!opt.isStandard) {
+          cncRequiredRemoves.push(opt.id);
+        }
+      }
+    }
+    // Intentional state update in response to CNC change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOptionQuantities((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [idStr, qty] of Object.entries(cncRequiredAdds)) {
+        const id = Number(idStr);
+        if (!next[id]) {
+          next[id] = qty;
+          changed = true;
+        }
+      }
+      for (const id of cncRequiredRemoves) {
+        if (next[id]) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [cncMachineModel, categories]);
+
+  // --- Setters for selection + quantity ---
+  const isLocked = useCallback((opt: Option) => {
+    if (opt.isStandard && opt.isRequired) return true;
+    if (opt.requiredWhenCompatible && opt.compatibleMachineModels && cncMachineModel) {
+      try {
+        const list = JSON.parse(opt.compatibleMachineModels) as string[];
+        if (list.includes(cncMachineModel)) return true;
+      } catch {
+        /* noop */
+      }
+    }
+    return false;
+  }, [cncMachineModel]);
+
+  const toggleOption = useCallback(
+    (option: Option) => {
+      if (isLocked(option)) return;
+      setOptionQuantities((prev) => {
+        const next = { ...prev };
+        if (next[option.id]) {
+          delete next[option.id];
+        } else {
+          next[option.id] = option.quantity && option.quantity > 0 ? option.quantity : 1;
+        }
+        return next;
+      });
+    },
+    [isLocked],
+  );
+
+  const setOptionQty = useCallback(
+    (option: Option, newQty: number) => {
+      if (isLocked(option) && option.isRequired) {
+        // Required item — enforce min
+        const min = option.minQuantity ?? 1;
+        if (newQty < min) newQty = min;
+      } else if (newQty < 0) {
+        newQty = 0;
+      }
+      const max = option.maxQuantity ?? 1000;
+      if (newQty > max) newQty = max;
+      setOptionQuantities((prev) => {
+        const next = { ...prev };
+        if (newQty <= 0 && !option.isRequired) {
+          delete next[option.id];
+        } else {
+          next[option.id] = newQty;
+        }
+        return next;
+      });
+    },
+    [isLocked],
+  );
+
+  // --- Pricing math (qty-aware) ---
   const { optionsTotal, totalPrice, selectedCount, selectedAddedOptions } = useMemo(() => {
     if (!machine) {
       return { optionsTotal: 0, totalPrice: 0, selectedCount: 0, selectedAddedOptions: [] };
     }
     let total = 0;
     let count = 0;
-    const added: Array<Option & { categoryName: string }> = [];
-    for (const [idStr, on] of Object.entries(selectedOptions)) {
-      if (!on) continue;
+    const added: Array<Option & { categoryName: string; resolvedQty: number }> = [];
+    for (const [idStr, qty] of Object.entries(optionQuantities)) {
+      if (!qty || qty <= 0) continue;
       const opt = optionById.get(Number(idStr));
-      if (!opt || opt.isStandard) continue;
-      total += toNum(opt.price) * (opt.quantity || 1);
-      count++;
-      added.push(opt);
+      if (!opt) continue;
+      const lineTotal = toNum(opt.price) * qty;
+      // Standard/included options with $0 price don't add to optionsTotal but still appear in summary.
+      if (!opt.isStandard) {
+        total += lineTotal;
+        count++;
+      } else if (toNum(opt.price) > 0) {
+        // Standard but priced (like pallets at $825 ea). Counts toward total.
+        total += lineTotal;
+      }
+      if (toNum(opt.price) > 0) {
+        added.push({ ...opt, resolvedQty: qty });
+      }
     }
     return {
       optionsTotal: total,
@@ -192,7 +328,7 @@ export default function Configurator() {
       selectedCount: count,
       selectedAddedOptions: added,
     };
-  }, [selectedOptions, optionById, machine]);
+  }, [optionQuantities, optionById, machine]);
 
   const financingCalc = useMemo(() => {
     const downPayment = totalPrice * (financing.downPaymentPct / 100);
@@ -295,9 +431,17 @@ export default function Configurator() {
   const quoteMutation = useMutation({
     mutationFn: async () => {
       if (!machine || !categories) throw new Error("Not ready");
-      const selectedOpts = categories.flatMap((cat) =>
-        cat.options.filter((o) => selectedOptions[o.id]),
-      );
+      const selectedPayload: Array<{ id: number; quantity?: number }> = [];
+      for (const [idStr, qty] of Object.entries(optionQuantities)) {
+        if (!qty || qty <= 0) continue;
+        const opt = optionById.get(Number(idStr));
+        if (!opt) continue;
+        if (opt.allowQuantityAdjustment) {
+          selectedPayload.push({ id: opt.id, quantity: qty });
+        } else {
+          selectedPayload.push({ id: opt.id });
+        }
+      }
       const financingParamsForServer = financing
         ? {
             downPayment: Number(financingCalc.downPayment),
@@ -318,13 +462,18 @@ export default function Configurator() {
         unmannedUtilBefore: roi.unmannedUtilBefore,
         unmannedUtilAfter: roi.unmannedUtilAfter,
       };
+      const cncYearNum = cncYear.trim() ? Number(cncYear) : null;
       const res = await apiRequest("POST", "/api/quotes", {
         machineId: machine.id,
-        selectedOptionIds: selectedOpts.map((o) => o.id),
+        selectedOptions: selectedPayload,
         customerName: formData.name,
         customerEmail: formData.email,
         customerCompany: formData.company || null,
         customerPhone: formData.phone || null,
+        cncMachineModel: cncMachineModel || null,
+        cncYear: cncYearNum && Number.isFinite(cncYearNum) ? cncYearNum : null,
+        cncSerialNumber: cncSerialNumber.trim() || null,
+        voltage,
         financingParams: financingParamsForServer,
         roiParams: roiParamsForServer,
         website: honeypot,
@@ -427,7 +576,9 @@ export default function Configurator() {
               onClick={() => scrollToCategory("overview")}
             />
             {categories.map((cat) => {
-              const hasSelected = cat.options.some((o) => selectedOptions[o.id] && !o.isStandard);
+              const hasSelected = cat.options.some(
+                (o) => (optionQuantities[o.id] ?? 0) > 0 && !o.isStandard,
+              );
               return (
                 <CategoryNavButton
                   key={cat.id}
@@ -452,11 +603,11 @@ export default function Configurator() {
             className="mb-8"
           >
             <div className="mb-6">
-              <Badge variant="outline" className="text-xs mb-3 border-primary/30 text-primary">
+              <Badge variant="outline" className="text-sm mb-3 border-primary/30 text-primary">
                 {machine.series} Series
               </Badge>
-              <h1 className="text-2xl font-bold text-foreground mb-2">{machine.name}</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+              <h1 className="text-3xl font-bold text-foreground mb-3">{machine.name}</h1>
+              <p className="text-base text-muted-foreground leading-relaxed max-w-3xl">
                 {machine.description}
               </p>
             </div>
@@ -467,23 +618,23 @@ export default function Configurator() {
                 .slice(0, 8)
                 .map(([key, value]) => (
                   <div key={key} className="rounded-lg border border-border/50 bg-card p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
                       {key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
                     </p>
-                    <p className="text-sm font-semibold text-foreground">{String(value)}</p>
+                    <p className="text-base font-semibold text-foreground">{String(value)}</p>
                   </div>
                 ))}
             </div>
 
             <Card className="p-4 bg-card/50">
-              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
+              <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Check className="h-5 w-5 text-primary" />
                 Standard Features Included
               </h3>
               <div className="grid sm:grid-cols-2 gap-2">
                 {parsedMachine.features.map((f, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Check className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+                  <div key={i} className="flex items-start gap-2 text-sm text-foreground/90">
+                    <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                     <span>{f}</span>
                   </div>
                 ))}
@@ -491,36 +642,143 @@ export default function Configurator() {
             </Card>
           </div>
 
-          {/* Option categories — uses memoized OptionCard so toggling one
-              option does NOT re-render all siblings. */}
-          {categories.map((cat) => (
-            <div
-              key={cat.id}
-              ref={(el) => {
-                categoryRefs.current[cat.slug] = el;
-              }}
-              className="mb-8 scroll-mt-20"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                {(() => {
-                  const Icon = CATEGORY_ICONS[cat.slug] || Settings2;
-                  return <Icon className="h-4 w-4 text-primary" />;
-                })()}
-                <h2 className="text-base font-bold text-foreground">{cat.name}</h2>
+          {/* ============================================================
+              System Setup — required first step. Drives option visibility.
+              ============================================================ */}
+          <Card className="mb-8 p-5 border-primary/30 bg-primary/5">
+            <div className="flex items-center gap-2 mb-4">
+              <Cog className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">System Setup</h2>
+              {!cncMachineModel && (
+                <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-xs">
+                  Required
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Label className="text-sm font-semibold mb-1.5 block">
+                  CNC Machine Model <span className="text-destructive">*</span>
+                </Label>
+                <Select value={cncMachineModel} onValueChange={setCncMachineModel}>
+                  <SelectTrigger className="text-base h-11" data-testid="cnc-model-select">
+                    <SelectValue placeholder="Select your CNC machine model" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[60vh]">
+                    {parsedMachine.compatibleMachines.map((m) => (
+                      <SelectItem key={m} value={m} className="text-base">
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Selecting a CNC enables compatible upgrades and applies any required add-ons (e.g., AC retrofit on UMC-400/500/750).
+                </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-3">
-                {cat.options.map((option) => (
-                  <OptionCard
-                    key={option.id}
-                    option={option}
-                    isSelected={!!selectedOptions[option.id]}
-                    onToggle={toggleOption}
-                  />
-                ))}
+              <div>
+                <Label htmlFor="cnc-year" className="text-sm font-semibold mb-1.5 block">
+                  CNC Year
+                </Label>
+                <Input
+                  id="cnc-year"
+                  type="number"
+                  inputMode="numeric"
+                  min={1980}
+                  max={2100}
+                  placeholder="e.g. 2023"
+                  value={cncYear}
+                  onChange={(e) => setCncYear(e.target.value)}
+                  className="text-base h-11"
+                  data-testid="cnc-year-input"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cnc-serial" className="text-sm font-semibold mb-1.5 block">
+                  CNC Serial Number
+                </Label>
+                <Input
+                  id="cnc-serial"
+                  placeholder="e.g. 1234567"
+                  value={cncSerialNumber}
+                  onChange={(e) => setCncSerialNumber(e.target.value)}
+                  className="text-base h-11"
+                  data-testid="cnc-serial-input"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label className="text-sm font-semibold mb-1.5 block">
+                  Voltage <span className="text-muted-foreground font-normal">(default 220 VAC)</span>
+                </Label>
+                <div className="flex gap-2">
+                  {(["220 VAC", "480 VAC"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setVoltage(v)}
+                      className={`flex-1 rounded-lg border px-4 py-3 text-base font-semibold transition-colors ${
+                        voltage === v
+                          ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                          : "border-border/60 bg-card text-muted-foreground hover:border-primary/30"
+                      }`}
+                      data-testid={`voltage-${v.split(" ")[0]}`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          ))}
+          </Card>
+
+          {/* Option categories — uses memoized OptionCard so toggling one
+              option does NOT re-render all siblings. */}
+          {categories.map((cat) => {
+            const visibleOptions = cat.options.filter(isOptionVisibleForCnc);
+            if (visibleOptions.length === 0) return null;
+            return (
+              <div
+                key={cat.id}
+                ref={(el) => {
+                  categoryRefs.current[cat.slug] = el;
+                }}
+                className="mb-8 scroll-mt-20"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  {(() => {
+                    const Icon = CATEGORY_ICONS[cat.slug] || Settings2;
+                    return <Icon className="h-5 w-5 text-primary" />;
+                  })()}
+                  <h2 className="text-lg font-bold text-foreground">{cat.name}</h2>
+                </div>
+
+                {cat.slug === "upgrades" && (
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {cncMachineModel
+                      ? "Strongly recommended to use the OEM auto-door where available."
+                      : "Select your CNC machine above to see compatible upgrades."}
+                  </p>
+                )}
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {visibleOptions.map((option) => (
+                    <OptionCard
+                      key={option.id}
+                      option={option}
+                      quantity={optionQuantities[option.id] ?? 0}
+                      locked={isLocked(option)}
+                      onToggle={toggleOption}
+                      onSetQuantity={setOptionQty}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
 
           {/* Compatible machines */}
           <div className="mb-8">
@@ -538,7 +796,30 @@ export default function Configurator() {
         {/* Right sidebar — quote summary */}
         <aside className="hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
           <div className="p-5">
-            <h3 className="text-sm font-bold text-foreground mb-4">Quote Summary</h3>
+            <h3 className="text-base font-bold text-foreground mb-4">Quote Summary</h3>
+
+            {/* CNC + voltage configuration block */}
+            {(cncMachineModel || voltage) && (
+              <div className="mb-3 rounded-md bg-muted/40 px-3 py-2.5 space-y-1">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                  System Setup
+                </p>
+                {cncMachineModel ? (
+                  <p className="text-sm font-semibold text-foreground leading-tight">
+                    {cncMachineModel}
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 italic">
+                    No CNC selected
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                  {cncYear && <span>Year {cncYear}</span>}
+                  {cncSerialNumber && <span>S/N {cncSerialNumber}</span>}
+                  <span>{voltage}</span>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-muted-foreground">{machine.name} Base</span>
@@ -549,36 +830,43 @@ export default function Configurator() {
             <Separator className="my-2" />
 
             <div className="mb-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
                 Selected Options
               </p>
               {selectedAddedOptions.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic py-2">
+                <p className="text-sm text-muted-foreground italic py-2">
                   No additional options selected
                 </p>
               ) : (
-                selectedAddedOptions
-                  .filter((o) => toNum(o.price) > 0)
-                  .map((o) => (
+                selectedAddedOptions.map((o) => {
+                  const lineTotal = toNum(o.price) * o.resolvedQty;
+                  return (
                     <div key={o.id} className="flex justify-between items-start py-1.5 group">
                       <div className="flex-1 mr-2">
-                        <p className="text-xs text-foreground">{o.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{o.categoryName}</p>
+                        <p className="text-sm text-foreground leading-tight">{o.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {o.categoryName}
+                          {o.resolvedQty > 1 &&
+                            ` · ${o.resolvedQty} × ${USD(toNum(o.price))}`}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-foreground">
-                          {USD(toNum(o.price))}
+                        <span className="text-sm font-semibold text-foreground">
+                          {USD(lineTotal)}
                         </span>
-                        <button
-                          onClick={() => toggleOption(o)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label={`Remove ${o.name}`}
-                        >
-                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                        </button>
+                        {!isLocked(o) && !o.isStandard && (
+                          <button
+                            onClick={() => toggleOption(o)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label={`Remove ${o.name}`}
+                          >
+                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  ))
+                  );
+                })
               )}
             </div>
 
@@ -586,15 +874,15 @@ export default function Configurator() {
 
             {optionsTotal > 0 && (
               <div className="flex justify-between items-center py-1">
-                <span className="text-xs text-muted-foreground">Options Total</span>
+                <span className="text-sm text-muted-foreground">Options Total</span>
                 <span className="text-sm font-semibold text-foreground">
                   +{USD(optionsTotal, 2)}
                 </span>
               </div>
             )}
             <div className="flex justify-between items-center py-2 mt-1">
-              <span className="text-sm font-bold text-foreground">Total Price</span>
-              <span className="text-xl font-bold text-primary">{USD(totalPrice, 2)}</span>
+              <span className="text-base font-bold text-foreground">Total Price</span>
+              <span className="text-2xl font-bold text-primary">{USD(totalPrice, 2)}</span>
             </div>
 
             <Button
@@ -1331,6 +1619,19 @@ export default function Configurator() {
                     <span className="text-muted-foreground">{machine.name}</span>
                     <span className="font-bold text-primary">{USD(totalPrice, 2)}</span>
                   </div>
+                  {cncMachineModel && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">CNC</span>
+                      <span className="font-semibold text-foreground">
+                        {cncMachineModel}
+                        {cncYear && ` (${cncYear})`}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Voltage</span>
+                    <span className="font-semibold text-foreground">{voltage}</span>
+                  </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>
                       {selectedCount} option{selectedCount !== 1 ? "s" : ""}
@@ -1370,11 +1671,17 @@ export default function Configurator() {
                   <Button
                     type="submit"
                     className="flex-1 bg-primary text-primary-foreground font-bold"
-                    disabled={quoteMutation.isPending}
+                    disabled={quoteMutation.isPending || !cncMachineModel}
+                    title={!cncMachineModel ? "Select your CNC machine model first" : undefined}
                   >
                     {quoteMutation.isPending ? "Generating…" : "Generate Quote & PDF"}
                   </Button>
                 </div>
+                {!cncMachineModel && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    Please select your CNC machine model in System Setup before generating a quote.
+                  </p>
+                )}
               </form>
             </TabsContent>
           </Tabs>
@@ -1390,80 +1697,171 @@ export default function Configurator() {
 
 const OptionCard = memo(function OptionCard({
   option,
-  isSelected,
+  quantity,
+  locked,
   onToggle,
+  onSetQuantity,
 }: {
   option: Option;
-  isSelected: boolean;
+  quantity: number;
+  locked: boolean;
   onToggle: (o: Option) => void;
+  onSetQuantity: (o: Option, q: number) => void;
 }) {
-  const isLocked = option.isStandard && option.isRequired;
+  const isSelected = quantity > 0;
+  const adjustable = option.allowQuantityAdjustment;
+  const price = toNum(option.price);
+  const lineTotal = price * quantity;
+
   const handleActivate = () => {
-    if (!isLocked) onToggle(option);
+    if (!locked) onToggle(option);
   };
 
+  const inc = () => {
+    const max = option.maxQuantity ?? 1000;
+    onSetQuantity(option, Math.min(quantity + 1, max));
+  };
+  const dec = () => {
+    const min = option.isRequired ? option.minQuantity ?? 1 : 0;
+    onSetQuantity(option, Math.max(quantity - 1, min));
+  };
+
+  // For qty-adjustable items: card body is non-toggling; the stepper drives selection.
+  // For checkbox items: tapping the card toggles selection.
+  const Wrapper: any = adjustable ? "div" : "button";
+  const wrapperProps = adjustable
+    ? {}
+    : {
+        type: "button",
+        role: "checkbox" as const,
+        "aria-checked": locked ? true : isSelected,
+        "aria-disabled": locked,
+        "aria-label": `${option.name}${price > 0 ? ` · $${price.toLocaleString()}` : ""}`,
+        onClick: handleActivate,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (!locked && (e.key === " " || e.key === "Enter")) {
+            e.preventDefault();
+            onToggle(option);
+          }
+        },
+        disabled: locked,
+      };
+
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={isLocked ? true : isSelected}
-      aria-disabled={isLocked}
-      aria-label={`${option.name}${toNum(option.price) > 0 ? ` · $${toNum(option.price).toLocaleString()}` : ""}`}
-      onClick={handleActivate}
-      onKeyDown={(e) => {
-        if (!isLocked && (e.key === " " || e.key === "Enter")) {
-          e.preventDefault();
-          onToggle(option);
-        }
-      }}
-      disabled={isLocked}
-      className={`relative text-left rounded-lg border p-4 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-        isLocked
-          ? "border-primary/20 bg-primary/5 cursor-default"
+    <Wrapper
+      {...wrapperProps}
+      className={`relative text-left rounded-lg border p-4 transition-colors duration-150 ${
+        adjustable ? "" : "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      } ${
+        locked
+          ? "border-primary/40 bg-primary/5"
           : isSelected
             ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
             : "border-border/60 bg-card hover:border-primary/30"
-      }`}
+      } ${adjustable ? "cursor-default" : locked ? "cursor-default" : "cursor-pointer"}`}
       data-testid={`option-${option.id}`}
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          {isLocked || isSelected ? (
-            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-              <Check className="h-3 w-3 text-primary-foreground" />
+          {isSelected || locked ? (
+            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+              {locked && !adjustable ? (
+                <Lock className="h-3 w-3 text-primary-foreground" />
+              ) : (
+                <Check className="h-3.5 w-3.5 text-primary-foreground" />
+              )}
             </div>
           ) : (
-            <div className="h-5 w-5 rounded-full border-2 border-border" />
+            <div className="h-6 w-6 rounded-full border-2 border-border" />
           )}
-          {isLocked && (
+          {option.isStandard && option.isRequired && (
             <Badge
               variant="outline"
-              className="text-[10px] px-1.5 py-0 border-primary/30 text-primary"
+              className="text-[11px] px-1.5 py-0 border-primary/30 text-primary"
             >
               STANDARD
             </Badge>
           )}
+          {locked && !option.isStandard && (
+            <Badge
+              variant="outline"
+              className="text-[11px] px-1.5 py-0 border-amber-500/40 text-amber-700 dark:text-amber-300"
+            >
+              REQUIRED
+            </Badge>
+          )}
         </div>
         <div className="text-right">
-          {toNum(option.price) === 0 ? (
-            <span className="text-xs font-semibold text-primary">Included</span>
+          {price === 0 ? (
+            <span className="text-sm font-semibold text-primary">Included</span>
+          ) : adjustable ? (
+            <div>
+              <p className="text-xs text-muted-foreground">{USD(price)} each</p>
+              {quantity > 0 && (
+                <p className="text-base font-bold text-foreground">{USD(lineTotal)}</p>
+              )}
+            </div>
           ) : (
-            <span className="text-sm font-bold text-foreground">+{USD(toNum(option.price))}</span>
+            <span className="text-base font-bold text-foreground">+{USD(price)}</span>
           )}
         </div>
       </div>
 
-      <h4 className="text-sm font-semibold text-foreground mb-1">{option.name}</h4>
+      <h4 className="text-base font-semibold text-foreground mb-1">{option.name}</h4>
       {option.partNumber && (
-        <p className="text-[10px] text-muted-foreground mb-2 font-mono">
-          {option.partNumber}
-          {option.quantity && option.quantity > 1 && ` × ${option.quantity}`}
-        </p>
+        <p className="text-xs text-muted-foreground mb-2 font-mono">{option.partNumber}</p>
       )}
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">
         {option.description}
       </p>
-    </button>
+
+      {adjustable && (
+        <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold text-foreground">Qty</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={dec}
+              disabled={
+                quantity <= (option.isRequired ? option.minQuantity ?? 1 : 0)
+              }
+              aria-label="Decrease quantity"
+              className="h-9 w-9 rounded-md border border-border bg-card text-foreground flex items-center justify-center hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid={`option-${option.id}-dec`}
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={option.isRequired ? option.minQuantity ?? 1 : 0}
+              max={option.maxQuantity ?? 1000}
+              value={quantity}
+              onChange={(e) => {
+                const v = e.target.value === "" ? 0 : Number(e.target.value);
+                if (Number.isFinite(v)) onSetQuantity(option, v);
+              }}
+              className="h-9 w-16 rounded-md border border-border bg-card text-center text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              data-testid={`option-${option.id}-qty`}
+            />
+            <button
+              type="button"
+              onClick={inc}
+              aria-label="Increase quantity"
+              className="h-9 w-9 rounded-md border border-border bg-card text-foreground flex items-center justify-center hover:bg-accent"
+              data-testid={`option-${option.id}-inc`}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {option.isRequired && option.minQuantity && option.minQuantity > 0 && adjustable && (
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Minimum {option.minQuantity}
+        </p>
+      )}
+    </Wrapper>
   );
 });
 

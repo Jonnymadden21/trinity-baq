@@ -1,13 +1,22 @@
 import { z } from "zod";
 import { FinancingParamsSchema, RoiParamsSchema } from "../../shared/zodTypes.js";
 
+export const SelectedOptionSchema = z.object({
+  id: z.number().int().positive(),
+  quantity: z.number().int().min(0).max(1000).optional(),
+});
+
 export const QuotePayloadSchema = z.object({
   machineId: z.number().int().positive(),
-  selectedOptionIds: z.array(z.number().int().positive()),
+  selectedOptions: z.array(SelectedOptionSchema),
   customerName: z.string().min(1).max(200),
   customerEmail: z.string().email().max(254),
   customerCompany: z.string().max(200).nullable().optional(),
   customerPhone: z.string().max(50).nullable().optional(),
+  cncMachineModel: z.string().max(120).nullable().optional(),
+  cncYear: z.number().int().min(1980).max(2100).nullable().optional(),
+  cncSerialNumber: z.string().max(80).nullable().optional(),
+  voltage: z.enum(["220 VAC", "480 VAC"]).nullable().optional(),
   financingParams: FinancingParamsSchema.nullable().optional(),
   roiParams: RoiParamsSchema.nullable().optional(),
   website: z.string(), // honeypot, expected empty

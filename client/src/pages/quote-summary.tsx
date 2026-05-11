@@ -15,6 +15,8 @@ type Opt = {
   price: string | number;
   isStandard: boolean;
   category: string;
+  quantity?: number;
+  lineTotal?: string | number;
 };
 type FP = {
   downPaymentPct: number;
@@ -346,12 +348,12 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
                       <li>Max Part Height — 4"</li>
                       <li>Max Part Length — 6"</li>
                       <li>Max Weight Capacity — 8 lbs.</li>
-                      <li>Voltage — 220 VAC, 3 Phase, 40 AMPS</li>
+                      <li>Voltage — {quote.voltage || "220 VAC"}, 3 Phase, 40 AMPS</li>
                     </>
                   ) : (
                     <>
                       <li>{quote.machineName}</li>
-                      <li>Voltage — 220 VAC, 3 Phase, 40 AMPS</li>
+                      <li>Voltage — {quote.voltage || "220 VAC"}, 3 Phase, 40 AMPS</li>
                       <li>FOB — Ontario, CA</li>
                     </>
                   )}
@@ -362,12 +364,10 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
               <div className="config-col-header">CNC Machine Configuration</div>
               <div className="config-col-body">
                 <ul>
-                  <li>CNC Machine Details</li>
-                  <li>Manufacturer — TBD</li>
-                  <li>Year — TBD</li>
-                  <li>Model — TBD</li>
-                  <li>Controller — TBD</li>
-                  <li>Automation Entry — TBD</li>
+                  <li>Model — {quote.cncMachineModel || "—"}</li>
+                  <li>Year — {quote.cncYear || "—"}</li>
+                  <li>Serial Number — {quote.cncSerialNumber || "—"}</li>
+                  <li>Voltage — {quote.voltage || "220 VAC"}</li>
                 </ul>
               </div>
             </div>
@@ -402,19 +402,24 @@ export function QuoteProposal({ quote }: { quote: Quote }) {
             <>
               <h2 className="section-title">Selected Options</h2>
               <ProductTable
-                rows={add.map((o) => ({
-                  partNumber: o.partNumber || "—",
-                  name: o.name,
-                  bullets: o.description
-                    ? o.description
-                        .split("\n")
-                        .map((l) => l.trim())
-                        .filter(Boolean)
-                    : [],
-                  unitPrice: m2(toNum(o.price)),
-                  qty: 1,
-                  subTotal: m2(toNum(o.price)),
-                }))}
+                rows={add.map((o) => {
+                  const qty = o.quantity && o.quantity > 0 ? o.quantity : 1;
+                  const lineTotal =
+                    o.lineTotal != null ? toNum(o.lineTotal) : toNum(o.price) * qty;
+                  return {
+                    partNumber: o.partNumber || "—",
+                    name: o.name,
+                    bullets: o.description
+                      ? o.description
+                          .split("\n")
+                          .map((l) => l.trim())
+                          .filter(Boolean)
+                      : [],
+                    unitPrice: m2(toNum(o.price)),
+                    qty,
+                    subTotal: m2(lineTotal),
+                  };
+                })}
                 showPrice="show"
               />
             </>
@@ -920,13 +925,20 @@ function buildStdRows(std: Opt[], machineName: string, _basePrice: number): Row[
       .split(/(?:\n|(?<=[.])\s+(?=[A-Z]))/)
       .map((l) => l.trim().replace(/\.$/, ""))
       .filter((l) => l.length > 2);
+    const qty = o.quantity && o.quantity > 0 ? o.quantity : 1;
+    const unitPriceNum = toNum(o.price);
+    const lineTotalNum =
+      o.lineTotal != null ? toNum(o.lineTotal) : unitPriceNum * qty;
+    // Standard items at $0 → "Included"; standard items with a unit price (e.g. pallets at $825 ea)
+    // get full qty/unit/subtotal columns so the proposal shows the math.
+    const isFree = unitPriceNum === 0;
     rows.push({
       partNumber: o.partNumber || machineName,
       name: o.name,
       bullets,
-      unitPrice: "Included",
-      qty: 1,
-      subTotal: "Included",
+      unitPrice: isFree ? "Included" : money(unitPriceNum, 2),
+      qty,
+      subTotal: isFree ? "Included" : money(lineTotalNum, 2),
     });
   }
 

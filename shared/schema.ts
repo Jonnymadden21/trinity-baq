@@ -56,6 +56,14 @@ export const options = pgTable(
     isStandard: boolean("is_standard").notNull().default(false),
     isRequired: boolean("is_required").notNull().default(false),
     quantity: integer("quantity").default(1),
+    // When non-null, only show this option if the user's selected CNC model is in the JSON array.
+    compatibleMachineModels: text("compatible_machine_models"),
+    // When true AND compatibleMachineModels matches, auto-include and prevent deselect (e.g. AC Retrofit on UMC-400/500/750).
+    requiredWhenCompatible: boolean("required_when_compatible").notNull().default(false),
+    // When true, the user can adjust the quantity in the configurator (pallets, work-holding pieces).
+    allowQuantityAdjustment: boolean("allow_quantity_adjustment").notNull().default(false),
+    minQuantity: integer("min_quantity"),
+    maxQuantity: integer("max_quantity"),
     machineId: integer("machine_id")
       .notNull()
       .references(() => machines.id, { onDelete: "cascade" }),
@@ -77,6 +85,10 @@ export const quotes = pgTable("quotes", {
   customerEmail: text("customer_email").notNull(),
   customerCompany: text("customer_company"),
   customerPhone: text("customer_phone"),
+  cncMachineModel: text("cnc_machine_model"),
+  cncYear: integer("cnc_year"),
+  cncSerialNumber: text("cnc_serial_number"),
+  voltage: text("voltage"),
   selectedOptions: text("selected_options").notNull(), // JSON
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
   optionsTotal: numeric("options_total", { precision: 10, scale: 2 }).notNull(),

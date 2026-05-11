@@ -15,6 +15,13 @@
       "when": 1777577337448,
       "tag": "0001_schema_overhaul",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778470466019,
+      "tag": "0002_lowly_hannibal_king",
+      "breakpoints": true
     }
   ]
 }

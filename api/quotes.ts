@@ -46,24 +46,64 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   if (!machine) throw new HttpError(400, "Invalid input");
 
   // 5. Look up + validate every option
+  const selectedIds = p.selectedOptions.map((s) => s.id);
   const opts =
-    p.selectedOptionIds.length > 0
-      ? await db.select().from(options).where(inArray(options.id, p.selectedOptionIds))
+    selectedIds.length > 0
+      ? await db.select().from(options).where(inArray(options.id, selectedIds))
       : [];
-  if (opts.length !== p.selectedOptionIds.length) throw new HttpError(400, "Invalid input");
+  if (opts.length !== selectedIds.length) throw new HttpError(400, "Invalid input");
   for (const o of opts) {
     if (o.machineId !== machine.id) throw new HttpError(400, "Invalid input");
   }
 
-  // 6. Recompute totals on the server (coerce doublePrecision → string for the pricing module)
+  // 5b. If user picked a CNC, enforce machine-compatibility on every selected option,
+  //     and ensure required-when-compatible options are present.
+  const selectedCnc = p.cncMachineModel ?? null;
+  for (const o of opts) {
+    if (o.compatibleMachineModels) {
+      let compat: string[];
+      try {
+        compat = JSON.parse(o.compatibleMachineModels);
+      } catch {
+        throw new HttpError(500, "Server misconfiguration");
+      }
+      if (!selectedCnc || !compat.includes(selectedCnc)) {
+        throw new HttpError(400, "Invalid input");
+      }
+    }
+  }
+  if (selectedCnc) {
+    const allOptsForMachine = await db
+      .select()
+      .from(options)
+      .where(eq(options.machineId, machine.id));
+    for (const o of allOptsForMachine) {
+      if (!o.requiredWhenCompatible || !o.compatibleMachineModels) continue;
+      let compat: string[];
+      try {
+        compat = JSON.parse(o.compatibleMachineModels);
+      } catch {
+        continue;
+      }
+      if (compat.includes(selectedCnc) && !selectedIds.includes(o.id)) {
+        throw new HttpError(400, "Invalid input");
+      }
+    }
+  }
+
+  // 6. Recompute totals on the server (cents-precise; honors per-option quantities)
   const totals = computeQuoteTotals({
     machine: { id: machine.id, basePrice: String(machine.basePrice) },
     allOptions: opts.map((o) => ({
       id: o.id,
       machineId: o.machineId,
       price: String(o.price),
+      quantity: o.quantity,
+      allowQuantityAdjustment: o.allowQuantityAdjustment,
+      minQuantity: o.minQuantity,
+      maxQuantity: o.maxQuantity,
     })),
-    selectedOptionIds: p.selectedOptionIds,
+    selectedOptions: p.selectedOptions,
   });
 
   // 7. Insert (numeric columns accept string values; createdAt/updatedAt default server-side)
@@ -78,12 +118,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       customerEmail: p.customerEmail,
       customerCompany: p.customerCompany ?? null,
       customerPhone: p.customerPhone ?? null,
+      cncMachineModel: p.cncMachineModel ?? null,
+      cncYear: p.cncYear ?? null,
+      cncSerialNumber: p.cncSerialNumber ?? null,
+      voltage: p.voltage ?? null,
       selectedOptions: JSON.stringify(
         opts.map((o) => ({
           id: o.id,
           categoryId: o.categoryId,
+          partNumber: o.partNumber,
           name: o.name,
           price: o.price,
+          quantity: totals.resolvedQuantities[o.id] ?? o.quantity ?? 1,
+          lineTotal: String(Number(o.price) * (totals.resolvedQuantities[o.id] ?? o.quantity ?? 1)),
         })),
       ),
       basePrice: totals.basePrice,
@@ -98,7 +145,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   void sendQuoteEmail({
     quoteNumber: inserted.quoteNumber,
     machineName: inserted.machineName,
-    totalPrice: totals.totalPrice, // pass the precise string from pricing, not the number from DB
+    totalPrice: totals.totalPrice,
     customerName: inserted.customerName,
     customerEmail: inserted.customerEmail,
     customerCompany: inserted.customerCompany,

@@ -1,4 +1,5 @@
 import { drizzle } from "drizzle-orm/postgres-js";
+import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import { machines, optionCategories, options } from "../shared/schema.js";
 
@@ -641,12 +642,192 @@ export async function seedDatabase() {
 
   // For each machine, create option categories and options
   for (const machine of allMachines) {
-    if (machine.series === "AX") {
+    if (machine.slug === "ax2-16" || machine.slug === "ax2-24") {
+      // Per Mike's PDFs (May 7, 2026) — distinct catalog from other AX machines
+      await seedAX2Options(machine.id, machine.slug, allMachines);
+    } else if (machine.series === "AX") {
       await seedAXOptions(machine.id, machine.slug, allMachines);
     } else if (machine.series === "Ai") {
       await seedAiOptions(machine.id);
     }
   }
+}
+
+// Mike's per-machine PDFs cover only ax2-16 and ax2-24 today. Other AX
+// machines stay on the legacy seedAXOptions until their per-machine spec lands.
+async function seedAX2Options(machineId: number, slug: string, allMachines: any[]) {
+  const palletDefault = slug === "ax2-24" ? 24 : 16;
+  // The seed runner first re-INSERTs the machine row above with the original
+  // tagline/specs — so we read the *fresh* row to get the same data the prod
+  // migration writes. (Compatible CNCs etc. live in shared/schema row.)
+  void allMachines.find((m) => m.id === machineId);
+
+  const ax2_compat = JSON.stringify([
+    "Haas DM1 / DT1","Haas DM2 / DT2","Haas UMC-350 HD","Haas UMC-400","Haas UMC-500","Haas UMC-750",
+    "Haas VF-1","Haas VF-1 + TRT160","Haas VF-1 + TRT210",
+    "Haas VF-2","Haas VF-2 + TRT160","Haas VF-2 + TRT210",
+    "Haas VF-3","Haas VF-3 + TRT160","Haas VF-3 + TRT210",
+    "Haas VF-4","Haas VF-4 + TRT160","Haas VF-4 + TRT210",
+    "Brother Speedio Series","Doosan DNM 4500","Doosan DVF 4000, 5000",
+    "YCM NFX400A / CX4","YCM RX65","Hwacheon D2-5AX","Fanuc Robodrill",
+  ]);
+
+  // Auto-Door is only available on Haas VF/UMC/DM/DT and Doosan DNM 4500
+  const autoDoorCNCs = JSON.stringify([
+    "Haas DM1 / DT1","Haas DM2 / DT2","Haas UMC-350 HD","Haas UMC-400","Haas UMC-500","Haas UMC-750",
+    "Haas VF-1","Haas VF-1 + TRT160","Haas VF-1 + TRT210",
+    "Haas VF-2","Haas VF-2 + TRT160","Haas VF-2 + TRT210",
+    "Haas VF-3","Haas VF-3 + TRT160","Haas VF-3 + TRT210",
+    "Haas VF-4","Haas VF-4 + TRT160","Haas VF-4 + TRT210",
+    "Doosan DNM 4500",
+  ]);
+
+  // AC Retrofit: only UMC-400/500/750, MANDATORY when CNC matches.
+  const acRetrofitCNCs = JSON.stringify(["Haas UMC-400","Haas UMC-500","Haas UMC-750"]);
+
+  // Update the machine row to match the prod migration (price/desc/features).
+  await db
+    .update(machines)
+    .set({
+      basePrice: "170500",
+      tagline: slug === "ax2-24"
+        ? "Medium-Duty Side-Load Pallet Automation – 24 Stations"
+        : "Medium-Duty Side-Load Pallet Automation – 16 Stations",
+      description:
+        "Medium-sized side-load automated pallet system designed for small and medium vertical machining centers. The AX2 is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 55 lbs. per pallet and available 16- or 24-pallet storage configurations, the AX2 accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently.",
+      compatibleMachines: ax2_compat,
+      features: JSON.stringify([
+        "Six Axis Industrial Robot – 35 KG Max Payload",
+        `${palletDefault} Standard Pallet Storage Locations`,
+        `${slug === "ax2-24" ? '12"' : '16"'} max part size (for work holding + work piece on top of pallet)`,
+        '9" max part height (for work holding + work piece on top of pallet)',
+        "55 lbs. max weight (for work holding + work piece on top of pallet)",
+        "Standard Schunk Single Pallet Gripper – 55 lbs. Capacity",
+        '15" Operator Control Touch Screen',
+        "Rotary Operator Load Station",
+        "Trinity AX Pallet Management Software",
+        "Operator Handheld Vacuum",
+        "Fully Integrated Safety Enclosure",
+        "Active Drying Station",
+        "In-Machine CNC Zero-Point Interface",
+        "Shipment Preparation & Crating",
+      ]),
+      specs: JSON.stringify({
+        palletStations: palletDefault,
+        maxPartDiameter: slug === "ax2-24" ? '12"' : '16"',
+        maxPartHeight: '9"',
+        maxWeight: "55 lbs.",
+        palletDiameter: '7.5"',
+        palletThickness: '1.5"',
+        zeroPointPullStuds: 1,
+        rotaryLoad: "Standard",
+        activeDryingStation: "Included",
+        loadDirection: "Side",
+        axWidth: '76"',
+        axDepth: '107"',
+        axHeight: '115"',
+        voltage: "220 VAC, 3 Phase, 40 AMPS (480 VAC available)",
+        secondMachine: "N/A",
+        robotPayload: "35 KG",
+        robotAxes: 6,
+      }),
+    })
+    .where(eq(machines.id, machineId));
+
+  // Pallets
+  const cat1 = await db
+    .insert(optionCategories)
+    .values({ slug: "pallets", name: "Pallet Configuration", sortOrder: 1, machineId })
+    .returning()
+    .then((r) => r[0]);
+  await db.insert(options).values({
+    categoryId: cat1.id,
+    partNumber: "AX.A157",
+    name: "Trinity Certified Pallets",
+    description:
+      `A3 Style Blank Pallet - No Hole Pattern. Standard duty – Single Pull stud for single Schunk Vero-S Receiver. Approx. 7.5" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $825 each.`,
+    price: "825",
+    isStandard: true,
+    isRequired: true,
+    quantity: palletDefault,
+    allowQuantityAdjustment: true,
+    minQuantity: 2,
+    machineId,
+  });
+
+  // Work Holding (6 items from WH catalog)
+  const cat2 = await db
+    .insert(optionCategories)
+    .values({ slug: "workholding", name: "Work Holding Options", sortOrder: 2, machineId })
+    .returning()
+    .then((r) => r[0]);
+  await db.insert(options).values([
+    { categoryId: cat2.id, partNumber: "AX.WH-DT551", name: '500 Series Dovetail Vise - 1.5" Dovetail Profile', description: 'Dovetail profile -1.5". Overall height - 3.0". Fixture length - 2.35". Two gripping clamps. (DT-551)', price: "695", quantity: 0, allowQuantityAdjustment: true, minQuantity: 0, machineId },
+    { categoryId: cat2.id, partNumber: "AX.WH-DT320", name: '300 Series Dovetail Vise - ¾" Dovetail Profile', description: 'Dovetail profile - ¾". Overall height - 3.0". Fixture length - 5.97". Three gripping clamps. (DT-320)', price: "950", quantity: 0, allowQuantityAdjustment: true, minQuantity: 0, machineId },
+    { categoryId: cat2.id, partNumber: "AX.WH-DT702", name: '700 Series Dovetail Vise - 3" Dovetail Profile', description: 'Dovetail profile -3". Overall height - 3.0". Fixture length - 7.45". Four gripping clamps. (DT-702)', price: "1495", quantity: 0, allowQuantityAdjustment: true, minQuantity: 0, machineId },
+    { categoryId: cat2.id, partNumber: "AX.WH-KSC80", name: "KSC3 GRIP 80-130 Vise with Grip Jaws", description: "Dimensions: 80 x 130 x 78 mm. Jaw width: 80 mm. Max. clamping force: 25 kN. Max. torque: 90 Nm. Weight: 3.9 kg. (MFG PN 1514206)", price: "1250", quantity: 0, allowQuantityAdjustment: true, minQuantity: 0, machineId },
+    { categoryId: cat2.id, partNumber: "AX.WH-KSC125", name: "KSC3 GRIP 125-160 Vise with Grip Jaws", description: "Dimensions: 125 x 160 x 83 mm. Jaw width: 125 mm. Max. clamping force: 35 kN. Max. torque: 100 Nm. Weight: 8.7 kg. (MFG PN 1514238)", price: "1550", quantity: 0, allowQuantityAdjustment: true, minQuantity: 0, machineId },
+    { categoryId: cat2.id, partNumber: "AX.WH-KSC160", name: "KSC3 GRIP 160-280 Vise with Grip Jaws", description: "Dimensions: 160mm x 280mm x 70mm. Jaw width: 160 mm. Max. clamping force: 50 kN. Max. torque: 175 Nm. Weight: 25 kg. (MFG PN 1514250 / 2 x 432614)", price: "3975", quantity: 0, allowQuantityAdjustment: true, minQuantity: 0, machineId },
+  ]);
+
+  // Upgrades & Accessories — Auto-Door (machine-conditional) + AC Retrofit (machine-required)
+  const cat3 = await db
+    .insert(optionCategories)
+    .values({ slug: "upgrades", name: "Upgrades & Accessories", sortOrder: 3, machineId })
+    .returning()
+    .then((r) => r[0]);
+  await db.insert(options).values([
+    {
+      categoryId: cat3.id,
+      partNumber: "AX.AUTO-DOOR",
+      name: "Trinity Auto-Door",
+      description:
+        "Trinity-supplied auto-door integration. Strongly recommended to use the OEM auto-door where available; this option is for CNCs without OEM auto-door support.",
+      price: "4995",
+      compatibleMachineModels: autoDoorCNCs,
+      machineId,
+    },
+    {
+      categoryId: cat3.id,
+      partNumber: "AX.AC-RETRO",
+      name: "AC Retrofit",
+      description:
+        "AC retrofit kit required for Haas UMC-400/500/750 electrical cabinet. Mandatory on these models when configured with Trinity AX.",
+      price: "1995",
+      compatibleMachineModels: acRetrofitCNCs,
+      requiredWhenCompatible: true,
+      machineId,
+    },
+  ]);
+
+  // Installation
+  const cat4 = await db
+    .insert(optionCategories)
+    .values({ slug: "installation", name: "Installation & Services", sortOrder: 4, machineId })
+    .returning()
+    .then((r) => r[0]);
+  await db.insert(options).values({
+    categoryId: cat4.id,
+    partNumber: "AX.INST",
+    name: "On-Site Installation & Integration",
+    description:
+      "Trinity technician on-site for installation / machine integration. Includes on-site time & travel expenses. Hands-on operator training. Normal business hours 8:00 AM – 5:00 PM.",
+    price: "9995",
+    isRequired: true,
+    machineId,
+  });
+
+  // Warranty
+  const cat5 = await db
+    .insert(optionCategories)
+    .values({ slug: "warranty", name: "Warranty & Support", sortOrder: 5, machineId })
+    .returning()
+    .then((r) => r[0]);
+  await db.insert(options).values([
+    { categoryId: cat5.id, partNumber: "AX.W-1YR", name: "1-Year Standard Warranty", description: "Trinity warranties purchased materials and workmanship to be free of defects for one (1) year from SAT run-off completion or production start.", price: "0", isStandard: true, isRequired: true, machineId },
+    { categoryId: cat5.id, partNumber: "AX.W-2YR", name: "2-Year Extended Warranty + PM", description: "Extended warranty for an additional year beyond the standard 1-year warranty. Includes parts and labor for manufacturing defects, and Preventive Maintenance visit at the start of year 2.", price: "8995", machineId },
+    { categoryId: cat5.id, partNumber: "AX.PM-ANN", name: "Annual Preventive Maintenance", description: "Scheduled annual preventive maintenance visit by Trinity-certified technician. Recommended at the completion of 1 year of service. Only available if 2-Year Extended Warranty + PM is not selected.", price: "2995", machineId },
+  ]);
 }
 
 async function seedAXOptions(machineId: number, slug: string, allMachines: any[]) {
