@@ -11,7 +11,8 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
-  base: "./",
+  // Absolute base so SPA sub-routes (e.g. /configure/ax2-16) resolve assets to /assets/* instead of /configure/assets/* (which Vercel's catch-all rewrites to index.html, causing MIME errors).
+  base: "/",
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
