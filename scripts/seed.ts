@@ -478,10 +478,10 @@ export async function seedDatabase() {
       slug: "ax5-20",
       name: "AX5-20",
       series: "AX",
-      tagline: "Large-Format 20-Pallet Automation",
+      tagline: "Large-Format Side-Load Pallet Automation – 20 Stations",
       description:
-        '20-pallet automated system for medium/large vertical machining centers. Supports 20" diameter parts with 75 lbs capacity. Side-loading design integrates seamlessly with UMC-750 and similar machines.',
-      basePrice: "212082",
+        "Large-sized side-load automated pallet system designed for medium to large vertical machining centers. The AX5 is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 75 lbs. per pallet and 20-pallet storage locations, the AX5 accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently.",
+      basePrice: "189900",
       specs: JSON.stringify({
         palletStations: 20,
         maxPartDiameter: '20"',
@@ -536,10 +536,10 @@ export async function seedDatabase() {
       slug: "ax5-20-hd",
       name: "AX5-20 HD",
       series: "AX",
-      tagline: "Heavy-Duty 20-Pallet Powerhouse",
+      tagline: "Heavy-Duty Side-Load Pallet Automation – 20 Stations",
       description:
-        "The flagship heavy-duty system with 180 lbs capacity per pallet. Features 100 KG robot, HD triple-stud pallets, and 3x Schunk Vero-S clamping modules. Built for the most demanding production environments.",
-      basePrice: "277959",
+        "Large-sized side-load automated pallet system designed for medium to large vertical machining centers. The AX5 HD is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 180 lbs. per pallet and 20-pallet storage locations, the AX5 HD accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently.",
+      basePrice: "199900",
       specs: JSON.stringify({
         palletStations: 20,
         maxPartDiameter: '20"',
@@ -663,13 +663,19 @@ export async function seedDatabase() {
 // 25-CNC list, voltage callout for 480 VAC).
 async function seedAX2Options(machineId: number, slug: string, allMachines: any[]) {
   const isAX2Mike = slug === "ax2-16" || slug === "ax2-24";
+  const isAX5Mike = slug === "ax5-20" || slug === "ax5-20-hd";
+  const isMikeOverride = isAX2Mike || isAX5Mike;
   const isHD = slug.endsWith("-hd");
   const isDuo = slug.endsWith("-duo");
   const machineRow = allMachines.find((m) => m.id === machineId);
   const currentSpecs = machineRow ? JSON.parse(machineRow.specs) : {};
   const palletDefault = isAX2Mike
     ? (slug === "ax2-24" ? 24 : 16)
-    : (Number(currentSpecs.palletStations) || 16);
+    : isAX5Mike
+      ? 20
+      : (Number(currentSpecs.palletStations) || 16);
+  // Pallet list price: $2,500 for HD (triple-stud), $825 for standard. Per Mike's PDFs.
+  const palletPrice = isHD ? "2500" : "825";
 
   const ax2_compat = JSON.stringify([
     "Haas DM1 / DT1","Haas DM2 / DT2","Haas UMC-350 HD","Haas UMC-400","Haas UMC-500","Haas UMC-750",
@@ -681,6 +687,25 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
     "YCM NFX400A / CX4","YCM RX65","Hwacheon D2-5AX","Fanuc Robodrill",
   ]);
 
+  // AX5-20 CNC compatibility per Mike's PDF page 3.
+  const ax5_compat = JSON.stringify([
+    "Haas UMC-500","Haas UMC-750","Haas UMC-1000",
+    "Haas VF-1","Haas VF-1 + TRT160","Haas VF-1 + TRT210",
+    "Haas VF-2","Haas VF-2 + TRT160","Haas VF-2 + TRT210",
+    "Haas VF-3","Haas VF-3 + TRT160","Haas VF-3 + TRT210",
+    "Haas VF-4","Haas VF-4 + TRT160","Haas VF-4 + TRT210",
+    "Brother Speedio S300X1","Doosan DNM 4500","Doosan DVF 4000, 5000",
+    "YCM NFX400A / CX4","YCM RX65","Hwacheon D2-5AX","Methods MB-650U",
+  ]);
+
+  // AX5-20 HD CNC compatibility per Mike's PDF page 3 (no TRT/Brother variants).
+  const ax5_hd_compat = JSON.stringify([
+    "Haas UMC-500","Haas UMC-750","Haas UMC-1000",
+    "Haas VF-1","Haas VF-2","Haas VF-3","Haas VF-4",
+    "Doosan DNM 4500","Doosan DVF 4000, 5000",
+    "YCM NFX400A / CX4","YCM RX65","Hwacheon D2-5AX","Methods MB-650U",
+  ]);
+
   // Auto-Door is only available on Haas VF/UMC/DM/DT and Doosan DNM 4500
   const autoDoorCNCs = JSON.stringify([
     "Haas DM1 / DT1","Haas DM2 / DT2","Haas UMC-350 HD","Haas UMC-400","Haas UMC-500","Haas UMC-750",
@@ -690,6 +715,30 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
     "Haas VF-4","Haas VF-4 + TRT160","Haas VF-4 + TRT210",
     "Doosan DNM 4500",
   ]);
+
+  // AX5-20 Auto-Door compat per Mike's PDF page 5 (UMC + VF/TRT variants + DNM 4500).
+  const ax5_auto_door = JSON.stringify([
+    "Haas UMC-500","Haas UMC-750","Haas UMC-1000",
+    "Haas VF-1","Haas VF-1 + TRT160","Haas VF-1 + TRT210",
+    "Haas VF-2","Haas VF-2 + TRT160","Haas VF-2 + TRT210",
+    "Haas VF-3","Haas VF-3 + TRT160","Haas VF-3 + TRT210",
+    "Haas VF-4","Haas VF-4 + TRT160","Haas VF-4 + TRT210",
+    "Doosan DNM 4500",
+  ]);
+
+  // AX5-20 HD Auto-Door compat per Mike's PDF page 5 (no TRT variants).
+  const ax5_hd_auto_door = JSON.stringify([
+    "Haas UMC-500","Haas UMC-750","Haas UMC-1000",
+    "Haas VF-1","Haas VF-2","Haas VF-3","Haas VF-4",
+    "Doosan DNM 4500",
+  ]);
+
+  // Pick the right Auto-Door compat list for THIS machine.
+  const autoDoorForMachine = slug === "ax5-20"
+    ? ax5_auto_door
+    : slug === "ax5-20-hd"
+      ? ax5_hd_auto_door
+      : autoDoorCNCs;
 
   // AC Retrofit: only UMC-400/500/750, MANDATORY when CNC matches.
   const acRetrofitCNCs = JSON.stringify(["Haas UMC-400","Haas UMC-500","Haas UMC-750"]);
@@ -743,6 +792,75 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
         }),
       })
       .where(eq(machines.id, machineId));
+  } else if (isAX5Mike) {
+    // Full machine-row override per Mike's AX5-20 / AX5-20 HD PDFs (May 7 2026).
+    await db
+      .update(machines)
+      .set({
+        basePrice: slug === "ax5-20-hd" ? "199900" : "189900",
+        tagline: slug === "ax5-20-hd"
+          ? "Heavy-Duty Side-Load Pallet Automation – 20 Stations"
+          : "Large-Format Side-Load Pallet Automation – 20 Stations",
+        description: slug === "ax5-20-hd"
+          ? "Large-sized side-load automated pallet system designed for medium to large vertical machining centers. The AX5 HD is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 180 lbs. per pallet and 20-pallet storage locations, the AX5 HD accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently."
+          : "Large-sized side-load automated pallet system designed for medium to large vertical machining centers. The AX5 is ideal for high-mix production environments focused on maximizing spindle utilization and increasing lights-out manufacturing capacity. With payload capacities up to 75 lbs. per pallet and 20-pallet storage locations, the AX5 accommodates a wide range of parts while maintaining a compact footprint. Its side-load design preserves unrestricted front access to the machine, allowing operators to perform setups and machine access more efficiently.",
+        compatibleMachines: slug === "ax5-20-hd" ? ax5_hd_compat : ax5_compat,
+        features: slug === "ax5-20-hd"
+          ? JSON.stringify([
+              "Six Axis Industrial Robot – 100 KG Max Payload",
+              "20 HD Pallet Storage Locations",
+              '20" max part size (for work holding + work piece on top of pallet)',
+              '12" max part height (for work holding + work piece on top of pallet)',
+              "180 lbs. max weight (for work holding + work piece on top of pallet)",
+              "HD Schunk Single Pallet Gripper – 180 lbs. Capacity",
+              "3x Schunk Vero-S Clamping Modules per pallet",
+              'Heavy Duty Triple Pull Stud Pallets (14.75")',
+              '15" Operator Control Touch Screen',
+              "Rotary Operator Load Station",
+              "Trinity AX Pallet Management Software",
+              "Operator Handheld Vacuum",
+              "Fully Integrated Safety Enclosure",
+              "Active Drying Station",
+              "In-Machine CNC Zero-Point Interface",
+              "Shipment Preparation & Crating",
+            ])
+          : JSON.stringify([
+              "Six Axis Industrial Robot – 50 KG Max Payload",
+              "20 Standard Pallet Storage Locations",
+              '20" max part size (for work holding + work piece on top of pallet)',
+              '12" max part height (for work holding + work piece on top of pallet)',
+              "75 lbs. max weight (for work holding + work piece on top of pallet)",
+              "Standard Schunk Single Pallet Gripper – 75 lbs. Capacity",
+              '15" Operator Control Touch Screen',
+              "Rotary Operator Load Station",
+              "Trinity AX Pallet Management Software",
+              "Operator Handheld Vacuum",
+              "Fully Integrated Safety Enclosure",
+              "Active Drying Station",
+              "In-Machine CNC Zero-Point Interface",
+              "Shipment Preparation & Crating",
+            ]),
+        specs: JSON.stringify({
+          palletStations: 20,
+          maxPartDiameter: '20"',
+          maxPartHeight: '12"',
+          maxWeight: slug === "ax5-20-hd" ? "180 lbs." : "75 lbs.",
+          palletDiameter: slug === "ax5-20-hd" ? '14.75"' : '7.5"',
+          palletThickness: '1.5"',
+          zeroPointPullStuds: slug === "ax5-20-hd" ? 3 : 1,
+          rotaryLoad: "Standard",
+          activeDryingStation: "Included",
+          loadDirection: "Side",
+          axWidth: '104"',
+          axDepth: '127"',
+          axHeight: '115"',
+          voltage: "220 VAC, 3 Phase, 40 AMPS (480 VAC available)",
+          secondMachine: "N/A",
+          robotPayload: slug === "ax5-20-hd" ? "100 KG" : "50 KG",
+          robotAxes: 6,
+        }),
+      })
+      .where(eq(machines.id, machineId));
   } else {
     // For other AX machines: keep native basePrice/description/features. Just apply
     // the universal updates: rotaryLoad="Standard", voltage callout, and the new 25-CNC list.
@@ -792,9 +910,9 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
     partNumber: isHD ? "AX.A081" : "AX.A157",
     name: isHD ? "Trinity HD Certified Pallets" : "Trinity Certified Pallets",
     description: isHD
-      ? `A3 HD Style Blank Pallet - No Hole Pattern. Heavy Duty – Triple Pull stud for 3 Schunk Vero-S Receivers. Approx. 14.75" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $825 each.`
-      : `A3 Style Blank Pallet - No Hole Pattern. Standard duty – Single Pull stud for single Schunk Vero-S Receiver. Approx. 7.5" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $825 each.`,
-    price: "825",
+      ? `A3 HD Style Blank Pallet - No Hole Pattern. Heavy Duty – Triple Pull stud for 3 Schunk Vero-S Receivers. Approx. 14.75" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $${palletPrice} each.`
+      : `A3 Style Blank Pallet - No Hole Pattern. Standard duty – Single Pull stud for single Schunk Vero-S Receiver. Approx. 7.5" Diameter x 1.5". Default ${palletDefault} pallets, adjustable (minimum 2). $${palletPrice} each.`,
+    price: palletPrice,
     isStandard: true,
     isRequired: true,
     quantity: palletDefault,
@@ -832,7 +950,7 @@ async function seedAX2Options(machineId: number, slug: string, allMachines: any[
       description:
         "Trinity-supplied auto-door integration. Strongly recommended to use the OEM auto-door where available; this option is for CNCs without OEM auto-door support.",
       price: "4995",
-      compatibleMachineModels: autoDoorCNCs,
+      compatibleMachineModels: autoDoorForMachine,
       machineId,
     },
     {

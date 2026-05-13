@@ -138,6 +138,26 @@
 }
 
 @layer utilities {
+  /* Mike (May 7 2026 PDFs): "Font on the website is a bit hard to read."
+     Bump the smallest type ~8–10% inside the configurator only. Scoped so the
+     machine-selector grid + PDF-rendered quote summary keep their typography. */
+  [data-testid="configurator-page"] .text-xs {
+    font-size: 0.8125rem; /* 13px (was 12px) */
+    line-height: 1.125rem;
+  }
+  [data-testid="configurator-page"] .text-\[10px\] {
+    font-size: 0.6875rem; /* 11px (was 10px) */
+    line-height: 0.9375rem;
+  }
+  [data-testid="configurator-page"] .text-\[11px\] {
+    font-size: 0.75rem; /* 12px (was 11px) */
+    line-height: 1rem;
+  }
+  [data-testid="configurator-page"] .text-sm {
+    font-size: 0.9375rem; /* 15px (was 14px) */
+    line-height: 1.4rem;
+  }
+
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
