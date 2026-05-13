@@ -14,7 +14,6 @@ if (POSTHOG_KEY) {
     person_profiles: "identified_only",
     capture_pageview: "history_change",
   });
-  posthog.register({ app: "trinity-baq" });
 }
 
 if (!window.location.hash) {
