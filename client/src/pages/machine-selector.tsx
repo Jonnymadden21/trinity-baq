@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sun, Moon, ArrowRight, Factory, Cpu, Shield, Zap } from "lucide-react";
 import type { Machine } from "@shared/schema";
+import { track } from "@/lib/analytics";
 
 const toNum = (v: string | number | null | undefined): number =>
   typeof v === "number" ? v : v == null ? 0 : Number(v) || 0;
@@ -130,6 +131,14 @@ function MachineCard({ machine }: { machine: Machine }) {
       <div
         className="group relative rounded-xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-primary/40 hover:shadow-lg cursor-pointer"
         data-testid={`machine-card-${machine.slug}`}
+        onClick={() =>
+          track("machine_selected", {
+            machine_slug: machine.slug,
+            machine_name: machine.name,
+            machine_series: machine.series,
+            base_price: Number(machine.basePrice),
+          })
+        }
       >
         {/* Top row: badge + price */}
         <div className="flex items-start justify-between mb-4">

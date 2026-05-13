@@ -68,6 +68,7 @@ import {
   Cog,
 } from "lucide-react";
 import type { Machine, Option, OptionCategory } from "@shared/schema";
+import { track } from "@/lib/analytics";
 
 type CategoryWithOptions = OptionCategory & { options: Option[] };
 
@@ -160,6 +161,8 @@ export default function Configurator() {
   const [honeypot, setHoneypot] = useState<string>("");
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const defaultsAppliedRef = useRef(false);
+  // Dedupe analytics — fire cnc_voltage_chosen once per CNC+voltage pair.
+  const lastCncVoltageSentRef = useRef<string>("");
 
   const { data: machine, isLoading: machineLoading } = useQuery<Machine>({
     queryKey: ["/api/machines", slug],
@@ -172,6 +175,19 @@ export default function Configurator() {
     enabled: !!machine,
     staleTime: 5 * 60_000,
   });
+
+  // Fire cnc_voltage_chosen once per unique (cnc, voltage) pair per session.
+  useEffect(() => {
+    if (!cncMachineModel || !voltage) return;
+    const key = `${cncMachineModel}::${voltage}`;
+    if (lastCncVoltageSentRef.current === key) return;
+    lastCncVoltageSentRef.current = key;
+    track("cnc_voltage_chosen", {
+      machine_slug: slug,
+      cnc_machine_model: cncMachineModel,
+      voltage,
+    });
+  }, [cncMachineModel, voltage, slug]);
 
   // --- Apply standard/required defaults ONCE (effect, not memo) ---
   useEffect(() => {
@@ -282,6 +298,14 @@ export default function Configurator() {
       if (isLocked(option)) return;
       setOptionQuantities((prev) => {
         const next = { ...prev };
+        const isAdding = !next[option.id];
+        track("option_toggled", {
+          machine_slug: slug,
+          option_part_number: option.partNumber,
+          option_name: option.name,
+          option_price: Number(option.price),
+          action: isAdding ? "add" : "remove",
+        });
         if (next[option.id]) {
           delete next[option.id];
         } else {
@@ -539,6 +563,17 @@ export default function Configurator() {
       return res.json();
     },
     onSuccess: (data: any) => {
+      track("quote_submitted", {
+        machine_slug: slug,
+        machine_name: machine?.name,
+        quote_number: data.quoteNumber,
+        total_price: totalPrice,
+        options_total: optionsTotal,
+        options_added: selectedCount,
+        cnc_machine_model: cncMachineModel || null,
+        cnc_year: cncYear ? Number(cncYear) : null,
+        voltage,
+      });
       toast({ title: "Quote Generated", description: `Quote #${data.quoteNumber}` });
       navigate(`/quote/${data.quoteNumber}`);
     },
