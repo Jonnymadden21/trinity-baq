@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
+    { "source": "/_ph/static/:path*", "destination": "https://us-assets.i.posthog.com/static/:path*" },
+    { "source": "/_ph/array/:path*", "destination": "https://us-assets.i.posthog.com/array/:path*" },
+    { "source": "/_ph/:path*", "destination": "https://us.i.posthog.com/:path*" },
     { "source": "/api/machines/:id/options", "destination": "/api/machines/[id]/options" },
     { "source": "/api/machines/:id", "destination": "/api/machines/[id]" },
     { "source": "/api/quotes/:quoteNumber", "destination": "/api/quotes/[quoteNumber]" },
