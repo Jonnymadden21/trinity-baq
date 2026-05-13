@@ -200,6 +200,18 @@ const STALE_PART_NUMBERS = [
 // these as $0 standard rows). We don't add them anymore — clean if present.
 const STALE_LEGACY_INTEGRATION = ["AX.A176","AX.A177","AX.A187","AX.A223"];
 
+// Legacy work-holding partNumbers from the pre-standardization seed. Replaced
+// by the WORK_HOLDING catalog below (DT551/DT320/DT702/KSC80/KSC125/KSC160).
+// Delete if present in prod so users don't see a duplicate stale list.
+const STALE_LEGACY_WORKHOLDING = [
+  "AX.WH-DT",   // Dovetail Fixturing
+  "AX.WH-SC",   // Self Centering Vice w/ Soft Jaw
+  "AX.WH-DV",   // Dual Vice Setup
+  "AX.WH-TB",   // Tombstone Fixtures
+  "AX.WH-3D",   // 3D Modular Work Holding
+  "AX.WH-CF",   // Custom Fixturing
+];
+
 async function ensureCategory(
   machineId: number,
   slug: string,
@@ -275,7 +287,11 @@ async function upsertOption(
 }
 
 async function deleteStaleOptions(machineId: number) {
-  const partNumbers = [...STALE_PART_NUMBERS, ...STALE_LEGACY_INTEGRATION];
+  const partNumbers = [
+    ...STALE_PART_NUMBERS,
+    ...STALE_LEGACY_INTEGRATION,
+    ...STALE_LEGACY_WORKHOLDING,
+  ];
   await db
     .delete(options)
     .where(and(eq(options.machineId, machineId), inArray(options.partNumber, partNumbers)));
