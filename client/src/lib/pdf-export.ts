@@ -1,4 +1,5 @@
 import type { Quote } from "@shared/schema";
+import { BROCHURE_MAP } from "./brochures";
 
 type SelectedOption = {
   id: number;
@@ -15,19 +16,6 @@ export type ExportQuoteArgs = {
   financing: any;
   roi: any;
 };
-
-const BROCHURE_MAP: Record<string, string[]> = {
-  "ax1-12": ["ax1-spec.pdf"],
-  "ax1-18": ["ax1-spec.pdf"],
-  "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-  "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-  "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-  "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-  "ax4-12": ["ax4-spec.pdf"],
-  "ax4-12-hd": ["ax4-spec.pdf"],
-  "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
-  "ax5-20-hd": ["ax5-hd-brochure.pdf"],
-  };
 
 /**
  * High-fidelity export: render each `.page` element to its own canvas and add

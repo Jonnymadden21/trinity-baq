@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Printer, Download, Loader2 } from "lucide-react";
 import type { Quote } from "@shared/schema";
+import { BROCHURE_MAP } from "@/lib/brochures";
 
 /* ---------- Types ---------- */
 type Opt = {
@@ -69,20 +70,6 @@ const safe = <T,>(v: string | null | undefined, fb: T): T => {
     return fb;
   }
 };
-
-/* Brochure map for "PDF + Brochures" merge button */
-const BROCHURE_MAP: Record<string, string[]> = {
-  "ax1-12": ["ax1-spec.pdf"],
-  "ax1-18": ["ax1-spec.pdf"],
-  "ax2-16": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-  "ax2-24": ["ax2-brochure.pdf", "ax2-spec.pdf"],
-  "ax2-16-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-  "ax2-24-duo": ["ax2-duo-brochure.pdf", "ax2-duo-spec.pdf"],
-  "ax4-12": ["ax4-spec.pdf"],
-  "ax4-12-hd": ["ax4-spec.pdf"],
-  "ax5-20": ["ax5-brochure.pdf", "ax5-spec.pdf"],
-  "ax5-20-hd": ["ax5-hd-brochure.pdf"],
-  };
 
 /* Per-machine branding — series logo, hero, tagline */
 function brandForSlug(slug: string, machineName: string) {
