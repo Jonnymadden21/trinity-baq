@@ -17,11 +17,15 @@ import {
   FileText,
   Layers,
   Bot,
+  Search,
+  X,
 } from "lucide-react";
 import type { Machine } from "@shared/schema";
 import { brochuresForSlug, brochureUrl } from "@/lib/brochures";
+import { buildBrandIndex, compatibleSlugs } from "@/lib/compatibility";
 
 type SeriesFilter = "all" | "Ai" | "AX";
+type CompatPick = { brand: string; model: string } | null;
 
 export default function MachineSelector() {
   const { theme, toggleTheme } = useTheme();
@@ -29,6 +33,7 @@ export default function MachineSelector() {
     queryKey: ["/api/machines"],
   });
   const [filter, setFilter] = useState<SeriesFilter>("all");
+  const [compatPick, setCompatPick] = useState<CompatPick>(null);
 
   const orderedMachines = useMemo(() => {
     if (!machines) return [];
@@ -38,18 +43,46 @@ export default function MachineSelector() {
     ];
   }, [machines]);
 
-  const visibleMachines =
-    filter === "all"
-      ? orderedMachines
-      : orderedMachines.filter((m) => m.series === filter);
+  const brandIndex = useMemo(
+    () => buildBrandIndex(machines ?? []),
+    [machines],
+  );
+
+  const compatSlugs = useMemo(
+    () =>
+      compatPick
+        ? compatibleSlugs(brandIndex, compatPick.brand, compatPick.model)
+        : null,
+    [brandIndex, compatPick],
+  );
+
+  const visibleMachines = useMemo(() => {
+    let list = orderedMachines;
+    if (filter !== "all") list = list.filter((m) => m.series === filter);
+    if (compatSlugs) list = list.filter((m) => compatSlugs.has(m.slug));
+    return list;
+  }, [orderedMachines, filter, compatSlugs]);
 
   const handleSelectSeries = (next: SeriesFilter) => {
     setFilter(next);
+    setCompatPick(null);
     requestAnimationFrame(() => {
       document
         .getElementById("systems")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  };
+
+  const handleCompatPick = (pick: CompatPick) => {
+    setCompatPick(pick);
+    if (pick) {
+      setFilter("all");
+      requestAnimationFrame(() => {
+        document
+          .getElementById("systems")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   };
 
   return (
@@ -139,6 +172,16 @@ export default function MachineSelector() {
         </div>
       </section>
 
+      {/* Compatibility lookup */}
+      <section className="mx-auto max-w-7xl px-6 pt-10">
+        <CompatibilityLookup
+          brands={brandIndex.brands}
+          modelsByBrand={brandIndex.modelsByBrand}
+          pick={compatPick}
+          onPick={handleCompatPick}
+        />
+      </section>
+
       {/* Machine grid */}
       <section
         id="systems"
@@ -147,14 +190,18 @@ export default function MachineSelector() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-foreground">
-              {filter === "all"
+              {compatPick
+                ? `Systems compatible with ${compatPick.brand} ${compatPick.model}`
+                : filter === "all"
                 ? "All Trinity systems"
                 : filter === "AX"
                 ? "Ax pallet automation systems"
                 : "Ai part-loading systems"}
             </h2>
             <p className="text-sm text-muted-foreground max-w-xl">
-              Select a system to configure and build your quote.
+              {compatPick
+                ? `${visibleMachines.length} match${visibleMachines.length === 1 ? "" : "es"}. Select a system to configure and build your quote.`
+                : "Select a system to configure and build your quote."}
             </p>
           </div>
           <FilterPills filter={filter} setFilter={setFilter} />
@@ -384,6 +431,119 @@ function MachineCard({ machine }: { machine: Machine }) {
           <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" />
         </div>
       </Link>
+    </div>
+  );
+}
+
+function CompatibilityLookup({
+  brands,
+  modelsByBrand,
+  pick,
+  onPick,
+}: {
+  brands: string[];
+  modelsByBrand: Record<string, string[]>;
+  pick: CompatPick;
+  onPick: (pick: CompatPick) => void;
+}) {
+  const [brand, setBrand] = useState<string>(pick?.brand ?? "");
+  const [model, setModel] = useState<string>(pick?.model ?? "");
+
+  const models = brand ? modelsByBrand[brand] ?? [] : [];
+
+  const handleBrand = (b: string) => {
+    setBrand(b);
+    setModel("");
+  };
+
+  const handleShow = () => {
+    if (brand && model) onPick({ brand, model });
+  };
+
+  const handleClear = () => {
+    setBrand("");
+    setModel("");
+    onPick(null);
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-border/60 bg-card p-5 md:p-6"
+      data-testid="compatibility-lookup"
+    >
+      <div className="flex items-start gap-3 mb-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <Search className="h-4 w-4" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-foreground">
+            Already know your machine?
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Pick your CNC and we'll show the Trinity systems that fit.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
+        <select
+          value={brand}
+          onChange={(e) => handleBrand(e.target.value)}
+          data-testid="compat-brand"
+          className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60"
+        >
+          <option value="">CNC brand…</option>
+          {brands.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <select
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          disabled={!brand}
+          data-testid="compat-model"
+          className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/60 disabled:opacity-50"
+        >
+          <option value="">{brand ? "Machine model…" : "Pick a brand first"}</option>
+          {models.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={handleShow}
+          disabled={!brand || !model}
+          data-testid="compat-show"
+          className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Show compatible
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {pick && (
+        <div className="mt-4 flex items-center justify-between rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
+          <p className="text-xs text-foreground">
+            Filtering for{" "}
+            <span className="font-semibold">
+              {pick.brand} {pick.model}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={handleClear}
+            data-testid="compat-clear"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:opacity-80"
+          >
+            <X className="h-3 w-3" />
+            Clear
+          </button>
+        </div>
+      )}
     </div>
   );
 }
